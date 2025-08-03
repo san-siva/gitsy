@@ -7,7 +7,7 @@
 # A script to clear your working directory by stashing changes.
 # The stashed changes is tagged with the current date and time.
 
-source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/utils"
 
 main() {
 	validate_dependencies git figlet lolcat

@@ -6,7 +6,7 @@
 # Description:
 # A script to checkout branches, optionally stash changes, and manage git workflow efficiently.
 
-source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/utils"
 
 # Default Values
 stash=false
