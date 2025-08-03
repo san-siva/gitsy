@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+# Author: Santhosh Siva
+# Date Created: 03-08-2025
+
+# Description:
+# A script to clear your working directory by stashing changes.
+# The stashed changes is tagged with the current date and time.
+
+source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
+
+main() {
+	validate_dependencies git figlet lolcat
+	print_banner
+	stash_changes true
+}
+
+main
+exit 0

@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+
+# Author: Santhosh Siva
+# Date Created: 03-08-2025
+
+# Description:
+# A script to compare changes between two git branches.
+
+source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
+
+if ! [ -n "$(command -v git)" ]
+then
+    echo 'Git is not found, please setup git'
+    exit 1
+fi
+
+helpFunction()
+{
+    echo ""
+    echo "Usage: $0 -s <source-branch-override> -t <target-branch>"
+    echo -e "\t-t target branch"
+    echo -e "\t-s source branch"
+    echo -e "\t-h Help"
+    exit 0
+}
+
+target_branch=""
+source_branch=""
+
+while getopts "t:s:h:" opt
+do
+    case "$opt" in
+        t ) target_branch="$OPTARG" ;;
+        s ) source_branch="$OPTARG" ;;
+        h ) helpFunction ;; # Print helpFunction in case parameter is non-existent
+    esac
+done
+
+if [ -z "$target_branch" ]
+then
+    echo "-t Flag not set, exiting"
+    exit 1
+fi
+
+if [ -s "$source_branch" ]
+then
+    current_branch=$(git rev-parse --abbrev-ref HEAD)
+    echo "-s Flag not set, setting to current branch"
+    if ! [ $current_branch ]
+    then
+        echo "Failed to get current branch"
+        exit 1
+    fi
+    source_branch=$current_branch
+fi
+
+result=$(git diff --stat $source_branch..$target_branch)
+
+if ! [ -z "$result" ]
+then
+    echo "$result"
+    pbcopy <<< "$result"
+    exit 0
+fi
+
+echo "No changes found"
+exit 0

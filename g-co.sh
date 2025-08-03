@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+
+# Author: Santhosh Siva
+# Date Created: 03-08-2025
+
+# Description:
+# A script to checkout branches, optionally stash changes, and manage git workflow efficiently.
+
+source "$(dirname "${BASH_SOURCE[0]}")/utils.sh"
+
+# Default Values
+stash=false
+target_branch=
+
+set_flags() {
+	while [ $# -gt 0 ]; do
+		case "$1" in
+		-h | --help)
+			echo "g-co - attempt to checkout to branch"
+			echo " "
+			echo "g-co [options] application [arguments]"
+			echo " "
+			echo "options:"
+			echo "-h, --help                show brief help"
+			echo "--target-branch=BRANCH    specify the target branch"
+			echo "--stash-changes           stash changes before proceeding"
+			exit 0
+			;;
+		-t=* | --target-branch=*)
+			target_branch="${1#*=}"
+			if [ -z "$target_branch" ]; then
+				echo "${RED}Error: No target branch specified.$NC"
+				exit 1
+			fi
+			;;
+		-t | --target-branch)
+			shift
+			if [ $# -gt 0 ]; then
+				target_branch="$1"
+			else
+				echo "${RED}Error: No target branch specified.$NC"
+				exit 1
+			fi
+			;;
+		-s | --stash-changes)
+			stash=true
+			;;
+		*)
+			echo "${RED}Unknown option:${NC} $1"
+			exit
+			;;
+		esac
+		shift
+	done
+}
+
+print_success_message() {
+	print_message "${GREEN}Checkout to branch ${NC}${GREEN}${target_branch}${NC}. [DONE]${NC}" | indent 2
+}
+
+checkout_or_create_branch() {
+	print_message "${BLUE}Checking-out to branch ${NC}origin/${target_branch} ${BLUE}${NC}"
+
+	# Check if branch exists locally
+	if git show-ref --verify --quiet "refs/heads/${target_branch}"; then
+		fetch_changes "${target_branch}"
+		checkout_branch "${target_branch}"
+		print_success_message
+		return
+	fi
+
+	print_message "${RED}Branch not found locally.${NC}" | indent 2
+	print_message "${BLUE}Checking if branch exists on remote...${NC}" | indent 2
+	if git ls-remote --heads origin "${target_branch}" | grep -q "${target_branch}"; then
+		print_message "${GREEN}Branch available on remote.${NC}" | indent 2
+		fetch_changes "${target_branch}"
+		checkout_branch "${target_branch}"
+		print_success_message
+		return
+	fi
+
+	print_message "${RED}Branch not found on remote.${NC}" | indent 2
+	create_new_branch=$(prompt_user true "Create new branch?" 2)
+	if [ "${create_new_branch}" = "y" ]; then
+		checkout_branch "${target_branch}" true
+		print_success_message
+		return
+	fi
+
+	print_message "${RED}Aborted.${NC}" | indent 2
+	exit 1
+}
+
+already_on_branch() {
+	current_branch=$(fetch_current_branch)
+	if [ "${target_branch}" = "${current_branch}" ]; then
+		print_message "${GREEN}Already on branch ${target_branch}. [DONE]${NC}" | indent 2
+		exit 1
+	fi
+}
+
+check_if_target_branch_is_set() {
+	if [ -z "${target_branch}" ]; then
+		print_message "${RED}Error: No target branch specified, use -t or --target-branch option.${NC}" | indent 2
+		exit 1
+	fi
+}
+
+main() {
+	validate_dependencies git figlet lolcat
+	print_banner
+	set_flags "$@"
+	check_if_target_branch_is_set
+	already_on_branch
+	stash_changes $stash
+	print_message ""
+	checkout_or_create_branch
+}
+
+# Run the script
+main "$@"
+exit 0
