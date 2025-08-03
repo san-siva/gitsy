@@ -22,20 +22,13 @@ git clone https://github.com/san-siva/gitsy.git
 cd gitsy
 ```
 
-2. Make the scripts executable:
-
-```bash
-chmod +x g-*
-chmod +x utils
-```
-
-3. Optionally, add the directory to your PATH in `.bashrc` or `.zshrc` for easy access:
+2. Optionally, add the directory to your PATH in `.bashrc` or `.zshrc` for easy access:
 
 ```bash
 export PATH="$PATH:/path/to/gitsy"
 ```
 
-4. Ensure dependencies are installed (the scripts attempt to install missing dependencies like `git`, `figlet`, and `lolcat` if available):
+3. Ensure dependencies are installed (the scripts attempt to install missing dependencies like `git`, `figlet`, and `lolcat` if available):
    - `git`
    - `figlet`
    - `lolcat`
