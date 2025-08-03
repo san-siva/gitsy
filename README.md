@@ -72,12 +72,6 @@ Checking-out to branch origin/feature/xyz
 
 ```
 
-Options:
-
-- `-t`, `--target-branch` — Specify target branch (required).
-- `-s`, `--stash-changes` — Stash changes before checkout.
-- `-h`, `--help` — Show help.
-
 ### g-pull - Pull Changes
 
 Pull changes from a remote branch.
