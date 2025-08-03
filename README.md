@@ -247,27 +247,3 @@ This project is licensed under the MIT License.
 
 Author: Santhosh Siva
 GitHub: https://github.com/san-siva
-
-If you want, I can help you generate specific usage examples or elaborate more on any particular script’s internal workflow. Would you like me to do that?
-
-<div style="text-align: center">⁂</div>
-
-[^1]: g-cb
-
-[^2]: g-co
-
-[^3]: g-diff
-
-[^4]: g-pull
-
-[^5]: g-push
-
-[^6]: g-rmf
-
-[^7]: g-rto
-
-[^8]: g-s
-
-[^9]: g-wa
-
-[^10]: utils
