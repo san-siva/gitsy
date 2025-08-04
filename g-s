@@ -6,8 +6,11 @@
 # Description:
 # This script returns the current status of the git repository.
 
+source "$(dirname "${BASH_SOURCE[0]}")/utils"
+
 main() {
-	validate_dependencies git
+	validate_dependencies git figlet lolcat
+	print_banner
 	git status
 }
 
