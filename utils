@@ -160,6 +160,8 @@ create_worktree() {
 	local worktree_path="$2"
 	local new_branch="$3"
 	local base_branch
+	local created_worktree_message="${GREEN}Successfully created worktree for branch ${NC}$target_branch${GREEN} at ${NC}$worktree_path${GREEN}. [DONE]${NC}"
+	local failed_worktree_message="${RED}Failed to create worktree for branch ${NC}$target_branch${RED}. [Fail]${NC}"
 
 	if [ -z "$target_branch" ]; then
 		print_message "${RED}Target branch is not set. [Fail]${NC}" | indent
@@ -190,30 +192,29 @@ create_worktree() {
 		# Use the -b flag on worktree directly:
 		if ! worktree_output=$(git worktree add -b "$target_branch" "$worktree_path" "origin/$base_branch" 2>&1); then
 			print_message "$worktree_output" | indent 4
-			print_message "${RED}Failed to create worktree for branch ${NC}$target_branch${RED}. [Fail]${NC}" | indent 2
+			print_message "${failed_worktree_message}" | indent 2
 			exit 1
 		fi
 
-		print_message "${GREEN}Created worktree ${NC}$target_branch${GREEN} from ${NC}origin/$base_branch${GREEN} at ${NC}$worktree_path${GREEN} [DONE]${NC}" | indent 2
 		print_message "${BLUE}Pushing new branch ${NC}$target_branch${BLUE} to remote...${NC}" | indent 2
-
 		if ! push_output=$(git push -u origin "$target_branch" 2>&1); then
 			print_message "$push_output" | indent 4
 			print_message "${RED}Failed to push new branch ${NC}$target_branch${RED} to remote. [Fail]${NC}" | indent 2
 			exit 1
 		fi
 
+		print_message "${created_worktree_message}" | indent 2
 		return 0
 	fi
 
 	# Just add the worktree to an existing branch:
 	if ! worktree_output=$(git worktree add "$worktree_path" "$target_branch" 2>&1); then
 		print_message "$worktree_output" | indent 4
-		print_message "${RED}Failed to create worktree for branch ${NC}$target_branch${RED}. [Fail]${NC}" | indent 2
+		print_message "${failed_worktree_message}" | indent 2
 		exit 1
 	fi
 
-	print_message "${GREEN}Successfully created worktree for branch ${NC}$target_branch${GREEN} at ${NC}$worktree_path${GREEN}. [DONE]${NC}" | indent 2
+	print_message "${created_worktree_message}" | indent 2
 	return 0
 }
 
