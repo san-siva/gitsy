@@ -6,6 +6,8 @@
 # Description:
 # This script returns the current branch name in a git repository.
 
+source "$(dirname "${BASH_SOURCE[0]}")/utils"
+
 main() {
 	validate_dependencies git
 	git rev-parse --abbrev-ref HEAD
