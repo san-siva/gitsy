@@ -12,16 +12,37 @@ NC=$(tput sgr0)
 
 overwrite() { echo -e "\r\033[1A\033[0K$@"; }
 
+default_spaces="    "
+
 print_message() {
-	echo -e "$1"
+	local number=$2
+	local message=$1
+
+	if [ -z "$message" ]; then
+		message=""
+	fi
+
+	if [ -z "$number" ]; then
+		number=0
+	fi
+
+	if [ "$number" -eq 0 ]; then
+		echo -e "   $message"
+		return 0
+	fi
+
+	# print_message ""
+
+	if [ "$number" -lt 10 ]; then
+		printf "%d. %s\n" "$number" "$message"
+		return 0
+	fi
+
+	printf "%02d. %s\n" "$number" "$message"
 }
 
 indent() {
-	local spaces=$1
-	if [ -z "$spaces" ]; then
-		spaces=2
-	fi
-	local prefix="$(printf "%${spaces}s")- "
+	local prefix="   │ "
 	sed "s/^/${prefix}/"
 }
 
@@ -54,14 +75,17 @@ print_banner() {
 prompt_user() {
 	local default_to_yes=$1
 	local message=$2
-	local spaces=$3
+	local step_number=$3
 
-	if [ -z "$spaces" ]; then
-		spaces=0
+	if [ -n "$step_number" ] && [ "$step_number" -ne 0 ]; then
+		local prefix="$(printf "%${default_spaces}s")${step_number}. "
+	elif [ "$step_number" -eq 0 ]; then
+		local prefix="$(printf "%${default_spaces}s")   "
+	else
+		local prefix="$(printf "%${default_spaces}s")- "
 	fi
 
-	local prefix="$(printf "%${spaces}s")- " # Generate spaces for indentation
-	local prompt="${PROMPT}${prefix}${message}${NC} "
+	local prompt="${prefix}${PROMPT}${message}${NC} "
 
 	if [ "$default_to_yes" = "true" ]; then
 		read -p "${prompt}(Y/n): " response
@@ -72,37 +96,54 @@ prompt_user() {
 	fi
 
 	case "$response" in
-	[Yy]) print_message "y" ;;
-	[Nn]) print_message "n" ;;
-	*) print_message "${prefix}Invalid input." && exit 1 ;;
+	[Yy]) echo "y" ;;
+	[Nn]) echo "n" ;;
+	*) print_message "Invalid input." 0 && exit 1 ;;
 	esac
 }
 
 fetch_current_branch() {
+	local print_current_branch=$1
+
+	if [ -z "$print_current_branch" ]; then
+		print_current_branch=true
+	fi
+
 	current_branch=$(git rev-parse --abbrev-ref HEAD)
 	if [ -z "$current_branch" ]; then
 		print_message "${RED}Failed to get current branch. [Fail]${NC}" | indent
 		exit 1
 	fi
+
+	if [ "$print_current_branch" != "true" ]; then
+		return 0
+	fi
+
 	echo "${current_branch}"
 }
 
 stash_changes() {
 	local stash_changes=$1
-	if [ "$stash_changes" = "true" ]; then
-		print_message "${BLUE}Stashing changes...${NC}"
+	local step_number=$2
 
-		if ! (git add -A 2>&1 | indent 4); then
-			print_message "${RED}Failed to add changes to stash. [Fail]${NC}" | indent
+	if [ -z "$step_number" ]; then
+		step_number=1
+	fi
+
+	if [ "$stash_changes" = "true" ]; then
+		print_message "${BLUE}Stashing changes...${NC}" $step_number
+
+		if ! (git add -A 2>&1 | indent); then
+			print_message "${RED}Failed to add changes to stash. [Fail]${NC}" 0
 			exit 1
 		fi
 
 		if ! (git stash push -m "Auto-stash__$(date '+%Y-%m-%d/%H:%M:%S')" 2>&1 | indent 4); then
-			print_message "${RED}Failed to stash changes. [Fail]${NC}" | indent
+			print_message "${RED}Failed to stash changes. [Fail]${NC}" 0
 			exit 1
 		fi
 
-		print_message "${GREEN}Changes stashed successfully.${NC}" | indent
+		print_message "${GREEN}Changes stashed successfully.${NC}" 0
 	fi
 }
 
@@ -110,16 +151,16 @@ fetch_changes() {
 	local target_branch=$1
 
 	if [ -z "$target_branch" ]; then
-		print_message "${RED}Target branch is not set. [Fail]${NC}" | indent
+		print_message "${RED}Target branch is not set. [Fail]${NC}" 0
 		return 1
 	fi
 
 	if ! git_output=$(git fetch origin "${target_branch}:${target_branch}" 2>&1); then
-		print_message "$git_output" | indent 4
-		print_message "${PROMPT}Auto-Fetch failed, Please do it manually.${NC}" | indent 2
+		print_message "$git_output" | indent
+		print_message "${PROMPT}Auto-Fetch failed, Please do it manually.${NC}" 0
 		return 1
 	else
-		print_message "$git_output" | indent 4
+		print_message "$git_output" 0
 		return 0
 	fi
 
@@ -131,27 +172,27 @@ checkout_branch() {
 	local new_branch=$2
 
 	if [ -z "$target_branch" ]; then
-		print_message "${RED}Target branch is not set. [Fail]${NC}" | indent
+		print_message "${RED}Target branch is not set. [Fail]${NC}"
 		exit 1
 	fi
 
 	if [ "$new_branch" = "true" ]; then
 		if ! checkout_output=$(git checkout -b "${target_branch}" 2>&1); then
-			print_message "$checkout_output" | indent 4
-			print_message "${RED}Failed to create new branch. [Fail]${NC}" | indent 2
+			print_message "$checkout_output" | indent
+			print_message "${RED}Failed to create new branch. [Fail]${NC}"
 			exit 1
 		fi
-		print_message "${GREEN}Created new local branch ${NC}${target_branch}${GREEN}. [DONE]${NC}" | indent 2
+		print_message "${GREEN}Created new local branch ${NC}${target_branch}${GREEN}. [DONE]${NC}"
 		return 0
 	fi
 
 	if ! checkout_output=$(git checkout "${target_branch}" 2>&1); then
-		print_message "$checkout_output" | indent 4
-		print_message "${RED}Failed to checkout to branch ${NC}${target_branch}${RED}. [Fail]${NC}" | indent 2
+		print_message "$checkout_output" | indent
+		print_message "${RED}Failed to checkout to branch ${NC}${target_branch}${RED}. [Fail]${NC}"
 		exit 1
 	fi
 
-	print_message "$checkout_output" | indent 4
+	print_message "$checkout_output" | indent
 	return 0
 }
 
@@ -236,7 +277,6 @@ reset_to_target_branch() {
 
 	print_message "$reset_output" | indent 4
 	print_message "${GREEN}Reset to ${NC}origin/${target_branch}${GREEN} successfully.${NC}" | indent 2
-	print_message ""
 }
 
 pull_changes() {

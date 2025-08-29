@@ -54,54 +54,55 @@ set_flags() {
 	done
 }
 
-print_success_message() {
-	print_message "${GREEN}Checkout to branch ${NC}${GREEN}${target_branch}${NC}. [DONE]${NC}" | indent 2
-}
-
 checkout_or_create_branch() {
-	print_message "${BLUE}Checking-out to branch ${NC}origin/${target_branch} ${BLUE}${NC}"
+	local step_number=2
+	if [ "${stash}" = true ]; then
+		step_number=3
+	fi
+
+	print_message "${BLUE}Checking-out to branch ${NC}origin/${target_branch}${BLUE}.${NC}" $step_number
 
 	# Check if branch exists locally
 	if git show-ref --verify --quiet "refs/heads/${target_branch}"; then
-		fetch_changes "${target_branch}"
-		checkout_branch "${target_branch}"
-		print_success_message
+		fetch_changes "${target_branch}" 
+		checkout_branch "${target_branch}" $((step_number + 1))
 		return
 	fi
 
-	print_message "${RED}Branch not found locally.${NC}" | indent 2
-	print_message "${BLUE}Checking if branch exists on remote...${NC}" | indent 2
+	print_message "${RED}Branch not found locally.${NC}"
+
+	print_message "${BLUE}Checking if branch exists on remote...${NC}" $((step_number + 1))
 	if git ls-remote --heads origin "${target_branch}" | grep -q "${target_branch}"; then
-		print_message "${GREEN}Branch available on remote.${NC}" | indent 2
+		print_message "${GREEN}Branch available on remote.${NC}"
 		fetch_changes "${target_branch}"
 		checkout_branch "${target_branch}"
-		print_success_message
 		return
 	fi
 
-	print_message "${RED}Branch not found on remote.${NC}" | indent 2
-	create_new_branch=$(prompt_user true "Create new branch?" 2)
+	print_message "${RED}Branch not found on remote.${NC}"
+
+	create_new_branch=$(prompt_user true "Create new branch?" $((step_number + 2)))
 	if [ "${create_new_branch}" = "y" ]; then
 		checkout_branch "${target_branch}" true
-		print_success_message
 		return
 	fi
 
-	print_message "${RED}Aborted.${NC}" | indent 2
+	print_message "${RED}Aborted.${NC}"
 	exit 1
 }
 
 already_on_branch() {
-	current_branch=$(fetch_current_branch)
+	print_message "${BLUE}Checking current branch...${NC}" 1
+	current_branch=$(fetch_current_branch true)
 	if [ "${target_branch}" = "${current_branch}" ]; then
-		print_message "${GREEN}Already on branch ${target_branch}. [DONE]${NC}" | indent 2
+		print_message "${GREEN}Already on branch ${NC}${target_branch}${GREEN}. [DONE]${NC}"
 		exit 1
 	fi
 }
 
 check_if_target_branch_is_set() {
 	if [ -z "${target_branch}" ]; then
-		print_message "${RED}Error: No target branch specified, use -t or --target-branch option.${NC}" | indent 2
+		print_message "${RED}Error: No target branch specified, use -t or --target-branch option.${NC}"
 		exit 1
 	fi
 }
@@ -113,7 +114,6 @@ main() {
 	check_if_target_branch_is_set
 	already_on_branch
 	stash_changes $stash
-	print_message ""
 	checkout_or_create_branch
 }
 
