@@ -57,10 +57,10 @@ main() {
 	print_banner
 	set_flags "$@"
 	if [ -z "$target_branch" ]; then
-		push_changes $(fetch_current_branch) $should_force_push
+		push_changes $(fetch_current_branch) $should_force_push 1
 		exit 0
 	fi
-	push_changes "$target_branch" $should_force_push
+	push_changes "$target_branch" $should_force_push 1
 }
 
 main "$@"

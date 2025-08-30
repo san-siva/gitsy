@@ -91,28 +91,12 @@ checkout_or_create_branch() {
 	exit 1
 }
 
-already_on_branch() {
-	print_message "${BLUE}Checking current branch...${NC}" 1
-	current_branch=$(fetch_current_branch true)
-	if [ "${target_branch}" = "${current_branch}" ]; then
-		print_message "${GREEN}Already on branch ${NC}${target_branch}${GREEN}. [DONE]${NC}"
-		exit 1
-	fi
-}
-
-check_if_target_branch_is_set() {
-	if [ -z "${target_branch}" ]; then
-		print_message "${RED}Error: No target branch specified, use -t or --target-branch option.${NC}"
-		exit 1
-	fi
-}
-
 main() {
 	validate_dependencies git figlet lolcat
 	print_banner
 	set_flags "$@"
-	check_if_target_branch_is_set
-	already_on_branch
+	check_if_target_branch_is_set $target_branch
+	already_on_branch $target_branch
 	stash_changes $stash
 	checkout_or_create_branch
 }
