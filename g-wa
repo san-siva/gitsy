@@ -68,7 +68,7 @@ checkout_or_create_branch() {
 		step_number=3
 	fi
 
-	local path="../git_worktree__$(echo -n "$target_branch" | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '_')"
+	local path="../gwt__$(echo -n "$target_branch" | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '_')"
 	print_message "${BLUE}Creating worktree for branch ${NC}origin/${target_branch} ${BLUE}at${NC} ${path} ${BLUE}${NC}" $step_number
 
 	if [ -d "$path" ]; then
