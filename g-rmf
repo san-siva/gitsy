@@ -9,11 +9,49 @@
 
 source "$(dirname "${BASH_SOURCE[0]}")/utils"
 
+# Default Values
+tag_name=
+
+set_flags() {
+	while [ $# -gt 0 ]; do
+		case "$1" in
+		-h | --help)
+			echo "g-rmf - clear your working directory by stashing changes"
+			echo " "
+			echo "g-rmf [options]"
+			echo " "
+			echo "options:"
+			echo "-h, --help                show brief help"
+			echo "-t, --tag-name=TAG        specify custom tag name for stash"
+			exit 0
+			;;
+		-t=* | --tag-name=*)
+			tag_name="${1#*=}"
+			;;
+		-t | --tag-name)
+			shift
+			if [ $# -gt 0 ]; then
+				tag_name="$1"
+			else
+				echo "${RED}Error: No tag name specified.$NC"
+				exit 1
+			fi
+			;;
+		*)
+			echo "${RED}Unknown option:${NC} $1"
+			exit
+			;;
+		esac
+		shift
+	done
+}
+
 main() {
 	validate_dependencies git figlet lolcat
 	print_banner
-	stash_changes true
+	set_flags "$@"
+	stash_changes true 1 "$tag_name"
 }
 
-main
+main "$@"
 exit 0

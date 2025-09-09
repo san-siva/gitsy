@@ -114,6 +114,7 @@ fetch_current_branch() {
 stash_changes() {
 	local stash_changes=$1
 	local step_number=$2
+	local tag_name=$3
 
 	if [ -z "$step_number" ]; then
 		step_number=0
@@ -127,7 +128,14 @@ stash_changes() {
 			exit 1
 		fi
 
-		if ! (git stash push -m "Auto-stash__$(date '+%Y-%m-%d/%H:%M:%S')" 2>&1 | indent 4); then
+		local stash_message
+		if [ -n "$tag_name" ]; then
+			stash_message="manual_stash__tag_${tag_name}__date_$(date '+%Y-%m-%d/%H:%M:%S')"
+		else
+			stash_message="auto_stash__date_$(date '+%Y-%m-%d/%H:%M:%S')"
+		fi
+
+		if ! (git stash push -m "$stash_message" 2>&1 | indent 4); then
 			print_message "${RED}Failed to stash changes. [Fail]${NC}" 0
 			exit 1
 		fi
