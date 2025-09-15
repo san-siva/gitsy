@@ -11,6 +11,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/utils"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 target_branch=
+do_fetch=false
 
 set_flags() {
 	while [ $# -gt 0 ]; do
@@ -24,6 +25,7 @@ set_flags() {
 			echo "-h, --help                show brief help"
 			echo "--target-branch=BRANCH    specify the target branch"
 			echo "--stash-changes           stash changes before proceeding"
+			echo "-f, --fetch               fetch changes before pulling"
 			exit 0
 			;;
 		-t=* | --target-branch=*)
@@ -42,6 +44,9 @@ set_flags() {
 				exit 1
 			fi
 			;;
+		-f | --fetch)
+			do_fetch=true
+			;;
 		esac
 		shift
 	done
@@ -52,10 +57,13 @@ main() {
 	print_banner
 	set_flags "$@"
 	if [ -z "$target_branch" ]; then
-		pull_changes $(fetch_current_branch) 1
-		exit 0
+		target_branch=$(fetch_current_branch)
 	fi
-	pull_changes "$target_branch" 1
+	if [ "$do_fetch" = "true" ]; then
+		print_message "${BLUE}Fetching changes...${NC}" 1
+		fetch_changes "$target_branch"
+	fi
+	pull_changes "$target_branch" 2
 }
 
 main "$@"

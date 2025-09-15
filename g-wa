@@ -85,7 +85,9 @@ checkout_or_create_branch() {
 
 	if [ -d "$path" ]; then
 		print_message "${RED}Worktree path already exists. [Fail]${NC}"
-		exit 1
+		no_of_identical_dirs=$(find ../worktrees -maxdepth 1 -type d -name "${worktree_name}*" | wc -l)
+		path="../worktrees/${worktree_name}_$(($no_of_identical_dirs + 1))"
+		print_message "${BLUE}Using new path: ${NC}${path}${BLUE}${NC}"
 	fi
 
 	# Check if branch exists locally

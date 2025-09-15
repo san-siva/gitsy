@@ -152,7 +152,7 @@ fetch_changes() {
 		return 1
 	fi
 
-	if ! git fetch origin "${target_branch}:${target_branch}" 2>&1 | indent; then
+	if ! git fetch origin "${target_branch}" 2>&1 | indent; then
 		print_message "${PROMPT}Auto-Fetch failed, Please do it manually.${NC}"
 		return 1
 	else
