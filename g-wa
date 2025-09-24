@@ -72,9 +72,9 @@ checkout_or_create_branch() {
 	local worktree_dir
 	local current_dir=$(basename "$PWD")
 	local parent_dir=$(basename "$(dirname "$PWD")")
-	
+
 	# Check if we're already in a worktree (parent directory contains worktrees)
-	if [ "$parent_dir" = "worktrees" ] || [ -d "../$current_dir" ] && git worktree list | grep -q "$(pwd)"; then
+	if [ "$parent_dir" = "worktrees" ]; then
 		# We're in a worktree, use parent of parent for new worktrees
 		worktree_dir="../"
 	else
