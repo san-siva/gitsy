@@ -62,8 +62,10 @@ main() {
 	if [ "$do_fetch" = "true" ]; then
 		print_message "${BLUE}Fetching changes...${NC}" 1
 		fetch_changes "$target_branch"
+		pull_changes "$target_branch" 2
+		exit 0
 	fi
-	pull_changes "$target_branch" 2
+	pull_changes "$target_branch" 1
 }
 
 main "$@"
