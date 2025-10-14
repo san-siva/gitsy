@@ -96,8 +96,13 @@ compare_branches() {
 
 	if [ -n "$result" ]; then
 		echo "$result" | indent
-		print_message "${GREEN}Diff copied to clipboard.${NC}"
-		pbcopy <<<"$result"
+
+		# Get full filenames for clipboard
+		filenames=$(git diff --name-only "${source_branch}..origin/${target_branch}")
+		if [ -n "$filenames" ]; then
+			print_message "${GREEN}Full file paths copied to clipboard.${NC}"
+			pbcopy <<<"$filenames"
+		fi
 	else
 		print_message "${BLUE}No changes found between ${NC}${source_branch}${BLUE} and ${NC}${target_branch}${BLUE}.${NC}"
 	fi
