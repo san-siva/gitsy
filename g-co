@@ -63,8 +63,8 @@ checkout_or_create_branch() {
 	print_message "${BLUE}Checking-out to branch ${NC}origin/${target_branch}${BLUE}.${NC}" $step_number
 
 	# Check if branch exists locally
-	if git show-ref --verify --quiet "refs/heads/${target_branch}"; then
-		fetch_changes "${target_branch}" 
+	if branch_exists_locally "${target_branch}"; then
+		fetch_changes "${target_branch}"
 		checkout_branch "${target_branch}" $((step_number + 1))
 		return
 	fi
@@ -72,7 +72,7 @@ checkout_or_create_branch() {
 	print_message "${RED}Branch not found locally.${NC}"
 
 	print_message "${BLUE}Checking if branch exists on remote...${NC}" $((step_number + 1))
-	if git ls-remote --heads origin "${target_branch}" | grep -q "${target_branch}"; then
+	if branch_exists_on_remote "${target_branch}"; then
 		print_message "${GREEN}Branch available on remote.${NC}"
 		fetch_changes "${target_branch}"
 		checkout_branch "${target_branch}"

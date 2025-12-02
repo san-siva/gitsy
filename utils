@@ -397,3 +397,19 @@ has_uncommitted_changes() {
 	fi
 	return 1
 }
+
+branch_exists_locally() {
+	local branch=$1
+	if git show-ref --verify --quiet "refs/heads/${branch}"; then
+		return 0
+	fi
+	return 1
+}
+
+branch_exists_on_remote() {
+	local branch=$1
+	if git ls-remote --heads origin "${branch}" | grep -q "${branch}"; then
+		return 0
+	fi
+	return 1
+}
