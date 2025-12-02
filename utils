@@ -336,3 +336,10 @@ check_if_target_branch_is_set() {
 		exit 1
 	fi
 }
+
+check_uncommitted_changes() {
+	if ! git diff-index --quiet HEAD --; then
+		return 1
+	fi
+	return 0
+}
