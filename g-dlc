@@ -48,35 +48,33 @@ set_flags() {
 	done
 }
 
-main() {
-	validate_dependencies git figlet lolcat
-	print_banner
-	set_flags "$@"
-
-	# Prompt user based on force mode
+prompt_user_confirmation() {
+	local step_number=1
 	if [ "$force_mode" = "true" ]; then
-		response=$(prompt_user "false" "Are you sure you want to discard the last commit? (this action cannot be undone)" 1)
+		confirm=$(prompt_user "false" "Are you sure you want to discard the last commit? (this action cannot be undone)" $step_number)
 	else
-		response=$(prompt_user "false" "Are you sure you want to discard the last commit?" 1)
+		confirm=$(prompt_user "false" "Are you sure you want to discard the last commit?" $step_number)
 	fi
 
-	if [ "$response" = "n" ]; then
+	if [ "$confirm" = "n" ]; then
 		print_message "${RED}Operation cancelled by user.${NC}" 0
 		exit 0
 	fi
+}
 
-	# If not force mode, check for uncommitted changes
+check_uncommitted_changes() {
 	if [ "$force_mode" = "false" ]; then
 		print_message "${BLUE}Checking for uncommitted changes...${NC}" 2
-		if ! check_uncommitted_changes; then
+		if has_uncommitted_changes "."; then
 			print_message "${RED}Error: There are uncommitted changes in your working directory.${NC}" 0
 			print_message "${RED}Please commit or stash your changes before discarding the last commit.${NC}" 0
 			exit 1
 		fi
 		print_message "${GREEN}No uncommitted changes found.${NC}" 0
 	fi
+}
 
-	# Discard the last commit
+discard_last_commit() {
 	print_message "${BLUE}Discarding the last commit...${NC}" 3
 
 	if [ "$force_mode" = "true" ]; then
@@ -87,13 +85,22 @@ main() {
 	reset_exit_code=$?
 
 	echo "$reset_output" | indent
-
 	if [ $reset_exit_code -ne 0 ]; then
 		print_message "${RED}Failed to discard the last commit. [Fail]${NC}" 0
 		exit 1
 	fi
 
 	print_message "${GREEN}Last commit discarded successfully.${NC}" 0
+}
+
+main() {
+	validate_dependencies git figlet lolcat
+	print_banner
+	set_flags "$@"
+
+	prompt_user_confirmation
+	check_uncommitted_changes
+	discard_last_commit
 }
 
 main "$@"
