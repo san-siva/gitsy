@@ -1,6 +1,6 @@
 {
   "name": "gitsy",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A set of bash utilities for managing Git repositories with ease",
   "keywords": [
     "git",
