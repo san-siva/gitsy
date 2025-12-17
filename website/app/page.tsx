@@ -156,7 +156,10 @@ export default function Home() {
 			</BlogSection>
 
 			<BlogSection title="Installation">
-				<p>Install gitsy globally using npm. You&apos;ll also need to install the required dependencies (git, figlet, lolcat) for your platform:</p>
+				<p>
+					Install gitsy globally using npm. You&apos;ll also need to install the
+					required dependencies (git, figlet, lolcat) for your platform:
+				</p>
 				<CodeBlock
 					language="bash"
 					code={CODE_EXAMPLES.installation}
@@ -164,7 +167,9 @@ export default function Home() {
 					hasMarginDown
 				/>
 				<p className={styles['margin-top--2']}>
-					Once installed, all commands (<code>g-s</code>, <code>g-co</code>, <code>g-pull</code>, etc.) will be available globally in your terminal.
+					Once installed, all commands (<code>g-s</code>, <code>g-co</code>,{' '}
+					<code>g-pull</code>, etc.) will be available globally in your
+					terminal.
 				</p>
 			</BlogSection>
 
@@ -294,27 +299,30 @@ export default function Home() {
 
 					<Callout type="info" hasMarginDown>
 						<p>
-							<strong>Repository Restructuring:</strong> On first use,{' '}
-							<code>g-wa</code> will automatically reorganize your repository:
+							<p className={styles['margin-bottom--1']}>
+								<strong>Repository Restructuring:</strong> On first use,{' '}
+								<code>g-wa</code> will automatically reorganize your repository:
+							</p>
+							<ul>
+								<li>
+									Moves your repository into a <code>main/</code> subdirectory
+								</li>
+								<li>
+									Creates a <code>worktrees/</code> directory for feature
+									branches
+								</li>
+								<li>Provides step-by-step feedback throughout the process</li>
+								<li>Requires confirmation before making any changes</li>
+							</ul>
+							<p className={styles['margin-top--2']}>
+								<strong>Final structure:</strong>
+							</p>
+							<CodeBlock
+								language="text"
+								code={CODE_EXAMPLES.worktreeStructure}
+								hasMarginUp
+							/>
 						</p>
-						<ul>
-							<li>
-								Moves your repository into a <code>main/</code> subdirectory
-							</li>
-							<li>
-								Creates a <code>worktrees/</code> directory for feature branches
-							</li>
-							<li>Provides step-by-step feedback throughout the process</li>
-							<li>Requires confirmation before making any changes</li>
-						</ul>
-						<p className={styles['margin-top--2']}>
-							<strong>Final structure:</strong>
-						</p>
-						<CodeBlock
-							language="text"
-							code={CODE_EXAMPLES.worktreeStructure}
-							hasMarginUp
-						/>
 					</Callout>
 
 					<p className={styles['margin-bottom--2']}>
@@ -374,8 +382,8 @@ export default function Home() {
 
 					<Callout type="warning" hasMarginDown>
 						<p>
-							<strong>Important:</strong> Worktrees can only be created from
-							the default branch (main/master). If you&apos;re on a different
+							<strong>Important:</strong> Worktrees can only be created from the
+							default branch (main/master). If you&apos;re on a different
 							branch, commit or stash your changes, checkout to the default
 							branch, and try again.
 						</p>
