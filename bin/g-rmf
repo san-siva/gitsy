@@ -41,6 +41,7 @@ set_flags() {
 			if [ $# -gt 0 ]; then
 				tag_message="$1"
 			else
+				echo ""
 				echo "${RED}Error: No message specified.$NC"
 				exit 1
 			fi

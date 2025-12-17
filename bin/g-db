@@ -35,6 +35,7 @@ set_flags() {
 		-t=* | --target-branch=*)
 			target_branch="${1#*=}"
 			if [ -z "$target_branch" ]; then
+				echo ""
 				echo "${RED}Error: No target branch specified.$NC"
 				exit 1
 			fi
@@ -44,11 +45,13 @@ set_flags() {
 			if [ $# -gt 0 ]; then
 				target_branch="$1"
 			else
+				echo ""
 				echo "${RED}Error: No target branch specified.$NC"
 				exit 1
 			fi
 			;;
 		*)
+			echo ""
 			echo "${RED}Unknown option:${NC} $1"
 			exit 1
 			;;
@@ -67,18 +70,20 @@ delete_local_branch() {
 		return 0
 	fi
 
-	current_branch=$(fetch_current_branch)
+	current_branch=$(get_current_branch)
 	if [ "${branch}" = "${current_branch}" ]; then
-		print_message "${RED}Cannot delete the branch you are currently on.${NC}"
-		print_message "${RED}Please checkout to another branch first.${NC}"
+		print_message "" -1
+		print_message "${RED}Cannot delete the branch you are currently on.${NC}" -1
+		print_message "${RED}Please checkout to another branch first.${NC}" -1
 		exit 1
 	fi
 
 	print_message "${BLUE}Deleting local branch ${NC}${branch}${BLUE}...${NC}" $step_number
 
 	if ! git -c color.ui=always branch -d "${branch}" 2>&1 | indent; then
-		print_message "${RED}Failed to delete local branch ${NC}${branch}${RED}. [Fail]${NC}"
-		print_message "${PROMPT}Hint: Branch may not be fully merged. Use 'git branch -D ${branch}' to force delete.${NC}"
+		print_message "" -1
+		print_message "${RED}Failed to delete local branch ${NC}${branch}${RED}. [Fail]${NC}" -1
+		print_message "${PROMPT}Hint: Branch may not be fully merged. Use 'git branch -D ${branch}' to force delete.${NC}" -1
 		exit 1
 	fi
 
@@ -100,7 +105,8 @@ prompt_remote_deletion() {
 
 	print_message "${BLUE}Deleting remote branch ${NC}origin/${branch}${BLUE}...${NC}" 6
 	if ! git -c color.ui=always push origin --delete "${branch}" 2>&1 | indent; then
-		print_message "${RED}Failed to delete remote branch ${NC}origin/${branch}${RED}. [Fail]${NC}"
+		print_message "" -1
+		print_message "${RED}Failed to delete remote branch ${NC}origin/${branch}${RED}. [Fail]${NC}" -1
 		exit 1
 	fi
 

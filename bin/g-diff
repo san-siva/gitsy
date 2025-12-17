@@ -46,7 +46,8 @@ set_flags() {
 		-t=* | --target-branch=*)
 			target_branch="${1#*=}"
 			if [ -z "$target_branch" ]; then
-				print_message "${RED}Error: No target branch specified.${NC}"
+				print_message "" -1
+				print_message "${RED}Error: No target branch specified.${NC}" -1
 				exit 1
 			fi
 			;;
@@ -55,14 +56,16 @@ set_flags() {
 			if [ $# -gt 0 ]; then
 				target_branch="$1"
 			else
-				print_message "${RED}Error: No target branch specified.${NC}"
+				print_message "" -1
+				print_message "${RED}Error: No target branch specified.${NC}" -1
 				exit 1
 			fi
 			;;
 		-s=* | --source-branch=*)
 			source_branch="${1#*=}"
 			if [ -z "$source_branch" ]; then
-				print_message "${RED}Error: No source branch specified.${NC}"
+				print_message "" -1
+				print_message "${RED}Error: No source branch specified.${NC}" -1
 				exit 1
 			fi
 			;;
@@ -71,12 +74,14 @@ set_flags() {
 			if [ $# -gt 0 ]; then
 				source_branch="$1"
 			else
-				print_message "${RED}Error: No source branch specified.${NC}"
+				print_message "" -1
+				print_message "${RED}Error: No source branch specified.${NC}" -1
 				exit 1
 			fi
 			;;
 		*)
-			print_message "${RED}Unknown option:${NC} $1"
+			print_message "" -1
+			print_message "${RED}Unknown option:${NC} $1" -1
 			exit 1
 			;;
 		esac
@@ -159,7 +164,8 @@ show_files_only() {
 	local filenames
 	if ! filenames=$(git diff --name-only "${source_branch}..origin/${target_branch}" 2>&1); then
 		echo "$filenames" | indent
-		print_message "${RED}Failed to compare branches.${NC}"
+		print_message "" -1
+		print_message "${RED}Failed to compare branches.${NC}" -1
 		exit 1
 	fi
 
@@ -174,7 +180,8 @@ show_stat_summary() {
 	local result
 	if ! result=$(git -c color.ui=always diff --stat "${source_branch}..origin/${target_branch}" 2>&1); then
 		echo "$result" | indent
-		print_message "${RED}Failed to compare branches.${NC}"
+		print_message "" -1
+		print_message "${RED}Failed to compare branches.${NC}" -1
 		exit 1
 	fi
 
@@ -194,9 +201,10 @@ compare_branches() {
 
 	if [ -z "$source_branch" ]; then
 		print_message "${BLUE}Source branch not specified, using current branch...${NC}" $step_number
-		source_branch=$(fetch_current_branch true)
+		source_branch=$(get_current_branch true)
 		if [ -z "$source_branch" ]; then
-			print_message "${RED}Failed to get current branch.${NC}"
+			print_message "" -1
+			print_message "${RED}Failed to get current branch.${NC}" -1
 			exit 1
 		fi
 		step_number=$((step_number + 1))
@@ -204,7 +212,8 @@ compare_branches() {
 
 	print_message "${BLUE}Fetching latest changes for target branch ${NC}${target_branch}${BLUE}...${NC}" $step_number
 	if ! fetch_changes "${target_branch}"; then
-		print_message "${RED}Failed to fetch target branch ${NC}${target_branch}${RED}.${NC}"
+		print_message "" -1
+		print_message "${RED}Failed to fetch target branch ${NC}${target_branch}${RED}.${NC}" -1
 		exit 1
 	fi
 

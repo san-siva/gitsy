@@ -30,6 +30,7 @@ set_flags() {
 			exit 0
 			;;
 		*)
+			echo ""
 			echo "${RED}Unknown option:${NC} $1"
 			exit 1
 			;;
@@ -42,7 +43,7 @@ main() {
 	set_flags "$@"
 	validate_dependencies git figlet lolcat
 	print_banner
-	target_branch=$(fetch_current_branch)
+	target_branch=$(get_current_branch)
 	stash_changes true 1
 	print_message ""
 

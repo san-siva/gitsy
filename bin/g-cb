@@ -29,6 +29,7 @@ set_flags() {
 			exit 0
 			;;
 		*)
+			echo ""
 			echo "${RED}Unknown option:${NC} $1"
 			exit 1
 			;;
@@ -44,7 +45,8 @@ main() {
 	print_message "${BLUE}Fetching current branch...${NC}" 1
 	current_branch_name=$(git rev-parse --abbrev-ref HEAD)
 	if [ -z "$current_branch_name" ]; then
-		print_message "${RED}Failed to get current branch.${NC}"
+		print_message "" -1
+		print_message "${RED}Failed to get current branch.${NC}" -1
 		exit 1
 	fi
 	echo "$current_branch_name" | indent

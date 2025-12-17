@@ -37,6 +37,7 @@ set_flags() {
 		-t=* | --target-branch=*)
 			target_branch="${1#*=}"
 			if [ -z "$target_branch" ]; then
+				echo ""
 				echo "${RED}Error: No target branch specified.$NC"
 				exit 1
 			fi
@@ -46,6 +47,7 @@ set_flags() {
 			if [ $# -gt 0 ]; then
 				target_branch="$1"
 			else
+				echo ""
 				echo "${RED}Error: No target branch specified.$NC"
 				exit 1
 			fi
@@ -63,7 +65,7 @@ main() {
 	validate_dependencies
 	print_banner
 	if [ -z "$target_branch" ]; then
-		push_changes $(fetch_current_branch) $should_force_push 1
+		push_changes $(get_current_branch) $should_force_push 1
 		exit 0
 	fi
 	push_changes "$target_branch" $should_force_push 1

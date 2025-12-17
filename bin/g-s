@@ -29,6 +29,7 @@ set_flags() {
 			exit 0
 			;;
 		*)
+			echo ""
 			echo "${RED}Unknown option:${NC} $1"
 			exit 1
 			;;
@@ -43,7 +44,7 @@ main() {
 	print_banner
 	print_message "${BLUE}Fetching git status...${NC}" 1
 
-	current_branch=$(fetch_current_branch)
+	current_branch=$(get_current_branch)
 
 	if ! git -c color.ui=always status 2>&1 | indent; then
 		print_message "${PROMPT}Failed to get git status. Are you in a git repository?${NC}"

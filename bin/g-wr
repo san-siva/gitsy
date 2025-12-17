@@ -20,6 +20,7 @@ source "$SCRIPT_DIR/utils"
 # Default Values
 target_branch=
 worktree_name=
+stash=false
 
 set_flags() {
 	while [ $# -gt 0 ]; do
@@ -33,11 +34,13 @@ set_flags() {
 			echo "-h, --help                                                             show brief help"
 			echo "--target-branch BRANCH, --target-branch=BRANCH, -t=BRANCH, -t BRANCH   specify the target branch"
 			echo "--worktree-name NAME, --worktree-name=NAME, -w=NAME, -w NAME           specify the worktree directory name"
+			echo "-s, --stash-changes                                                    stash changes before proceeding"
 			exit 0
 			;;
 		-t=* | --target-branch=*)
 			target_branch="${1#*=}"
 			if [ -z "$target_branch" ]; then
+				echo ""
 				echo "${RED}Error: No target branch specified.$NC"
 				exit 1
 			fi
@@ -47,6 +50,7 @@ set_flags() {
 			if [ $# -gt 0 ]; then
 				target_branch="$1"
 			else
+				echo ""
 				echo "${RED}Error: No target branch specified.$NC"
 				exit 1
 			fi
@@ -54,6 +58,7 @@ set_flags() {
 		-w=* | --worktree-name=*)
 			worktree_name="${1#*=}"
 			if [ -z "$worktree_name" ]; then
+				echo ""
 				echo "${RED}Error: No worktree name specified.$NC"
 				exit 1
 			fi
@@ -63,11 +68,16 @@ set_flags() {
 			if [ $# -gt 0 ]; then
 				worktree_name="$1"
 			else
+				echo ""
 				echo "${RED}Error: No worktree name specified.$NC"
 				exit 1
 			fi
 			;;
+		-s | --stash-changes)
+			stash=true
+			;;
 		*)
+			echo ""
 			echo "${RED}Unknown option:${NC} $1"
 			exit 1
 			;;
@@ -76,28 +86,8 @@ set_flags() {
 	done
 }
 
-cd_to_main_dir() {
-	local current_dirname=$(basename "$current_dir")
-	if [ "$current_dirname" = "main" ]; then
-		return 0
-	fi
-
-	if [ -d "../main" ]; then
-		if navigate_to_dir "../main"; then
-			return 0
-		fi
-	fi
-
-	if [ -d "../../main" ]; then
-		if navigate_to_dir "../../main"; then
-			return 0
-		fi
-	fi
-
-	exit 1
-}
-
 cd_to_worktrees_dir() {
+	local current_dir=$(pwd)
 	local current_dirname=$(basename "$current_dir")
 	if [ "$current_dirname" = "worktrees" ]; then
 		return 0
@@ -115,38 +105,40 @@ cd_to_worktrees_dir() {
 		fi
 	fi
 
-	print_message "${RED}Worktrees directory not found. [Fail]${NC}" 0 >&2
+	print_message "" -1 >&2
+	print_message "${RED}Worktrees directory not found. [Fail]${NC}" -1 >&2
 	exit 1
 }
 
-find_dir_to_remove() {
-	local current_dir=$(pwd)
+find_worktree_by_name() {
+	local worktree_name=$1
 
 	cd_to_worktrees_dir
 	local worktrees_dir=$(pwd)
 
-	worktree_path=""
-
-	if [ -n "$worktree_name" ]; then
-		for dir in *; do
-			if [ ! -d "$dir" ]; then
-				continue
-			fi
-
-			if [ "$dir" = "$worktree_name" ]; then
-				worktree_path="$worktrees_dir/$dir"
-				break
-			fi
-		done
-		cd_to_main_dir
-		if [ -z "$worktree_path" ]; then
-			return 1
+	for dir in *; do
+		if [ ! -d "$dir" ]; then
+			continue
 		fi
-		echo "$worktree_path"
-		return 0
-	fi
+
+		if [ "$dir" = "$worktree_name" ]; then
+			navigate_to_main_dir
+			echo "$worktrees_dir/$dir"
+			return 0
+		fi
+	done
+
+	navigate_to_main_dir
+	return 1
+}
+
+find_worktree_by_branch() {
+	local target_branch=$1
 
 	check_if_target_branch_is_set "$target_branch"
+
+	cd_to_worktrees_dir
+	local worktrees_dir=$(pwd)
 
 	for dir in *; do
 		if [ ! -d "$dir" ]; then
@@ -157,49 +149,55 @@ find_dir_to_remove() {
 			continue
 		fi
 
-		local branch=$(fetch_current_branch 2>/dev/null)
+		local branch=$(get_current_branch 2>/dev/null)
 		if [ -z "$branch" ]; then
 			navigate_to_dir "$worktrees_dir"
 			continue
 		fi
 
 		if [ "$branch" = "$target_branch" ]; then
-			worktree_path="$worktrees_dir/$dir"
-			break
+			navigate_to_main_dir
+			echo "$worktrees_dir/$dir"
+			return 0
 		fi
 
 		navigate_to_dir "$worktrees_dir"
 	done
 
-	cd_to_main_dir
+	navigate_to_main_dir
+	return 1
+}
 
-	if [ -z "$worktree_path" ]; then
-		return 1
+find_dir_to_remove() {
+	if [ -n "$worktree_name" ]; then
+		find_worktree_by_name "$worktree_name"
+		return $?
+	else
+		find_worktree_by_branch "$target_branch"
+		return $?
 	fi
-
-	echo "$worktree_path"
 }
 
 check_if_worktree_is_clean() {
 	local worktree_path=$1
+	local step_number=$2
 
-	if ! has_uncommitted_changes "$worktree_path"; then
-		return 0
-	fi
-
-	response=$(prompt_user "false" "Your worktree has uncommitted changes. Do you want to discard them?" 3)
-	if [ "$response" = "n" ]; then
-		print_message "${RED}Skipping worktree removal.${NC}" 0
-		exit 0
+	if has_uncommitted_changes "$worktree_path"; then
+		response=$(prompt_user "false" "Your worktree has uncommitted changes. Do you want to discard them?" $step_number)
+		if [ "$response" = "n" ]; then
+			print_message "${RED}Skipping worktree removal.${NC}" 0
+			exit 0
+		fi
 	fi
 }
 
 remove_worktree() {
 	local worktree_path=$1
+	local step_number=$2
 
-	print_message "${BLUE}Removing worktree at ${NC}${worktree_path}${BLUE}...${NC}" 4
+	print_message "${BLUE}Removing worktree at ${NC}${worktree_path}${BLUE}...${NC}" $step_number
 
-	if ! [ -n "$worktree_name" ]; then
+	if [ -z "$worktree_name" ]; then
 		# Try using git worktree remove first with --force flag
 		if git -c color.ui=always worktree remove --force "$worktree_path" 2>&1 | indent; then
 			# Verify the directory was actually removed
@@ -213,7 +211,7 @@ remove_worktree() {
 
 	# Fallback to rm -rf
 	if rm -rf "$worktree_path" 2>&1 | indent; then
-		if ! [ -n "$worktree_name" ]; then
+		if [ -z "$worktree_name" ]; then
 			# Also need to prune the worktree from git's records
 			git -c color.ui=always worktree prune 2>&1 | indent
 		fi
@@ -233,33 +231,41 @@ main() {
 	validate_dependencies git figlet lolcat
 	print_banner
 
+	stash_changes $stash 1
+
+	local step_number=2
+	if [ "$stash" = true ]; then
+		step_number=3
+	fi
+
 	if [ -n "$worktree_name" ]; then
-		print_message "${BLUE}Searching for worktree with name ${NC}${worktree_name}${BLUE}...${NC}" 1
+		print_message "${BLUE}Searching for worktree with name ${NC}${worktree_name}${BLUE}...${NC}" $step_number
 	else
-		print_message "${BLUE}Searching for worktree with branch ${NC}${target_branch}${BLUE}...${NC}" 1
+		print_message "${BLUE}Searching for worktree with branch ${NC}${target_branch}${BLUE}...${NC}" $step_number
 	fi
 
 	worktree_path=$(find_dir_to_remove)
 	if [ -z "$worktree_path" ]; then
+		print_message "" -1
 		if [ -n "$worktree_name" ]; then
-			print_message "${RED}No worktree found with name ${NC}${worktree_name}${RED}. [Fail]${NC}" 0
+			print_message "${RED}No worktree found with name ${NC}${worktree_name}${RED}. [Fail]${NC}" -1
 		else
-			print_message "${RED}No worktree found for branch ${NC}${target_branch}${RED}. [Fail]${NC}" 0
+			print_message "${RED}No worktree found for branch ${NC}${target_branch}${RED}. [Fail]${NC}" -1
 		fi
 		exit 1
 	fi
 
 	worktree_dirname=$(basename "$worktree_path")
 	if [ -n "$worktree_name" ]; then
-		print_message "${GREEN}Found worktree: ${NC}${worktree_dirname}${NC}" 2
+		print_message "${GREEN}Found worktree: ${NC}${worktree_dirname}${NC}" $((step_number + 1))
 	else
-		print_message "${GREEN}Found worktree: ${NC}${worktree_dirname}${GREEN} at ${NC}${worktree_path}${NC}" 2
+		print_message "${GREEN}Found worktree: ${NC}${worktree_dirname}${GREEN} at ${NC}${worktree_path}${NC}" $((step_number + 1))
 	fi
 
-	print_message "${BLUE}Checking for uncommitted changes...${NC}" 3
-	check_if_worktree_is_clean "$worktree_path"
+	print_message "${BLUE}Checking for uncommitted changes...${NC}" $((step_number + 2))
+	check_if_worktree_is_clean "$worktree_path" $((step_number + 2))
 
-	remove_worktree "$worktree_path"
+	remove_worktree "$worktree_path" $((step_number + 3))
 }
 
 main "$@"

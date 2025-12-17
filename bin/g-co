@@ -37,6 +37,7 @@ set_flags() {
 		-t=* | --target-branch=*)
 			target_branch="${1#*=}"
 			if [ -z "$target_branch" ]; then
+				echo ""
 				echo "${RED}Error: No target branch specified.$NC"
 				exit 1
 			fi
@@ -46,6 +47,7 @@ set_flags() {
 			if [ $# -gt 0 ]; then
 				target_branch="$1"
 			else
+				echo ""
 				echo "${RED}Error: No target branch specified.$NC"
 				exit 1
 			fi
@@ -95,7 +97,8 @@ checkout_or_create_branch() {
 		return
 	fi
 
-	print_message "${RED}Aborted.${NC}"
+	print_message "" -1
+	print_message "${RED}Aborted.${NC}" -1
 	exit 1
 }
 

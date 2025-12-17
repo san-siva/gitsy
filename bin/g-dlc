@@ -48,6 +48,7 @@ set_flags() {
 			fi
 			;;
 		*)
+			echo ""
 			echo "${RED}Unknown option:${NC} $1"
 			exit 1
 			;;
@@ -74,8 +75,9 @@ verify_no_uncommitted_changes() {
 	if [ "$force_mode" = "false" ]; then
 		print_message "${BLUE}Checking for uncommitted changes...${NC}" 2
 		if has_uncommitted_changes "."; then
-			print_message "${RED}Error: There are uncommitted changes in your working directory.${NC}" 0
-			print_message "${RED}Please commit or stash your changes before discarding the last commit.${NC}" 0
+			print_message "" -1
+			print_message "${RED}Error: There are uncommitted changes in your working directory.${NC}" -1
+			print_message "${RED}Please commit or stash your changes before discarding the last commit.${NC}" -1
 			exit 1
 		fi
 		print_message "${GREEN}No uncommitted changes found.${NC}" 0
@@ -96,7 +98,8 @@ discard_last_commit() {
 		echo "$reset_output" | indent
 	fi
 	if [ $reset_exit_code -ne 0 ]; then
-		print_message "${RED}Failed to discard the last commit. [Fail]${NC}" 0
+		print_message "" -1
+		print_message "${RED}Failed to discard the last commit. [Fail]${NC}" -1
 		exit 1
 	fi
 

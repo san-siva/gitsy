@@ -26,6 +26,12 @@ print_message() {
 		number=0
 	fi
 
+	# -1 means no indentation (flush left)
+	if [ "$number" -eq -1 ]; then
+		echo -e "$message"
+		return 0
+	fi
+
 	if [ "$number" -eq 0 ]; then
 		echo -e "   $message"
 		return 0
@@ -54,7 +60,8 @@ install_dependency() {
 		if brew install "$package" >>"$log_file" 2>>"$error_log_file"; then
 			return
 		else
-			print_message "${RED}Failed to install $package.${NC}"
+			print_message "" -1
+			print_message "${RED}Failed to install $package.${NC}" -1
 			exit 1
 		fi
 	fi
@@ -88,27 +95,77 @@ prompt_user() {
 	local prompt="${prefix}${PROMPT}${message}${NC} "
 
 	if [ "$default_to_yes" = "true" ]; then
-		read -p "${prompt}(Y/n): " response
+		echo -n "${prompt}(Y/n): " >&2
+		read response
 		response="${response:-y}"
 	else
-		read -p "${prompt}(y/N): " response
+		echo -n "${prompt}(y/N): " >&2
+		read response
 		response="${response:-n}"
 	fi
 
 	case "$response" in
 	[Yy]) echo "y" ;;
 	[Nn]) echo "n" ;;
-	*) print_message "Invalid input." 0 && exit 1 ;;
+	*)
+		print_message "" -1
+		print_message "${RED}Invalid input.${NC}" -1
+		exit 1
+		;;
 	esac
 }
 
-fetch_current_branch() {
+get_current_branch() {
 	current_branch=$(git rev-parse --abbrev-ref HEAD)
 	if [ -z "$current_branch" ]; then
-		print_message "${RED}Failed to get current branch. [Fail]${NC}"
+		print_message "" -1
+		print_message "${RED}Failed to get current branch. [Fail]${NC}" -1
 		exit 1
 	fi
 	echo "${current_branch}"
+}
+
+get_default_branch() {
+	local default_branch=""
+
+	# Try to get from remote HEAD
+	default_branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+
+	if [ -n "$default_branch" ]; then
+		echo "$default_branch"
+		return 0
+	fi
+
+	# Check if main exists locally
+	if git show-ref --verify --quiet "refs/heads/main"; then
+		echo "main"
+		return 0
+	fi
+
+	# Check if master exists locally
+	if git show-ref --verify --quiet "refs/heads/master"; then
+		echo "master"
+		return 0
+	fi
+
+	# Fallback to main
+	echo "main"
+	return 0
+}
+
+sanitize_branch_name() {
+	local branch_name=$1
+	local max_length=${2:-30}  # Default max length is 30
+
+	# Replace non-alphanumeric characters with underscores and convert to lowercase
+	local sanitized=$(echo "$branch_name" | sed -E 's/[^[:alnum:]]/_/g' | tr '[:upper:]' '[:lower:]')
+
+	# Truncate if longer than max_length
+	if [ ${#branch_name} -gt $max_length ]; then
+		sanitized="${sanitized:0:$max_length}.."
+	fi
+
+	echo "$sanitized"
 }
 
 stash_changes() {
@@ -124,7 +181,8 @@ stash_changes() {
 		print_message "${BLUE}Stashing changes...${NC}" $step_number
 
 		if ! (git -c color.ui=always add -A 2>&1 | indent); then
-			print_message "${RED}Failed to add changes to stash. [Fail]${NC}" 0
+			print_message "" -1
+			print_message "${RED}Failed to add changes to stash. [Fail]${NC}" -1
 			exit 1
 		fi
 
@@ -139,7 +197,8 @@ stash_changes() {
 		fi
 
 		if ! (git -c color.ui=always stash push -m "$stash_message" 2>&1 | indent 4); then
-			print_message "${RED}Failed to stash changes. [Fail]${NC}" 0
+			print_message "" -1
+			print_message "${RED}Failed to stash changes. [Fail]${NC}" -1
 			exit 1
 		fi
 
@@ -170,13 +229,15 @@ checkout_branch() {
 	local new_branch=$2
 
 	if [ -z "$target_branch" ]; then
-		print_message "${RED}Target branch is not set. [Fail]${NC}"
+		print_message "" -1
+		print_message "${RED}Target branch is not set. [Fail]${NC}" -1
 		exit 1
 	fi
 
 	if [ "$new_branch" = "true" ]; then
 		if ! git -c color.ui=always checkout -b "${target_branch}" 2>&1 | indent; then
-			print_message "${RED}Failed to create new branch. [Fail]${NC}"
+			print_message "" -1
+			print_message "${RED}Failed to create new branch. [Fail]${NC}" -1
 			exit 1
 		fi
 		print_message "${GREEN}Created new local branch ${NC}${target_branch}${GREEN}. [DONE]${NC}"
@@ -184,7 +245,8 @@ checkout_branch() {
 	fi
 
 	if ! git -c color.ui=always checkout "${target_branch}" 2>&1 | indent; then
-		print_message "${RED}Failed to checkout to branch ${NC}${target_branch}${RED}. [Fail]${NC}"
+		print_message "" -1
+		print_message "${RED}Failed to checkout to branch ${NC}${target_branch}${RED}. [Fail]${NC}" -1
 		exit 1
 	fi
 	return 0
@@ -195,32 +257,37 @@ create_worktree() {
 	local worktree_path="$2"
 	local new_branch="$3"
 	local base_branch
-	local created_worktree_message="${GREEN}Successfully created worktree for branch ${NC}$target_branch${GREEN} at ${NC}$worktree_path${GREEN}. [DONE]${NC}"
+	local created_worktree_message="${GREEN}Successfully created worktree for branch ${NC}$target_branch${GREEN}. [DONE]${NC}"
 	local failed_worktree_message="${RED}Failed to create worktree for branch ${NC}$target_branch${RED}. [Fail]${NC}"
 
 	if [ -z "$target_branch" ]; then
-		print_message "${RED}Target branch is not set. [Fail]${NC}"
+		print_message "" -1
+		print_message "${RED}Target branch is not set. [Fail]${NC}" -1
 		exit 1
 	fi
 	if [ -z "$worktree_path" ]; then
-		print_message "${RED}Worktree path is not set. [Fail]${NC}"
+		print_message "" -1
+		print_message "${RED}Worktree path is not set. [Fail]${NC}" -1
 		exit 1
 	fi
 	if [ -d "$worktree_path" ]; then
-		print_message "${RED}Worktree path already exists. [Fail]${NC}"
+		print_message "" -1
+		print_message "${RED}Worktree path already exists. [Fail]${NC}" -1
 		exit 1
 	fi
 
-	base_branch=$(fetch_current_branch)
+	base_branch=$(get_current_branch)
 	if [ -z "$base_branch" ]; then
-		print_message "${RED}Failed to get current branch. [Fail]${NC}"
+		print_message "" -1
+		print_message "${RED}Failed to get current branch. [Fail]${NC}" -1
 		exit 1
 	fi
 
 	if [ "$new_branch" = "true" ]; then
 		# Make sure the source branch exists remotely!
 		if ! git rev-parse --verify "origin/$base_branch" >/dev/null 2>&1; then
-			print_message "${RED}Base branch ${NC}origin/$base_branch${RED} not found. Cannot create new branch.${NC}"
+			print_message "" -1
+			print_message "${RED}Base branch ${NC}origin/$base_branch${RED} not found. Cannot create new branch.${NC}" -1
 			exit 1
 		fi
 
@@ -233,13 +300,13 @@ create_worktree() {
 
 		if [ $worktree_exit_code -ne 0 ]; then
 			print_message "${failed_worktree_message}"
-			exit 1
+			return 1
 		fi
 
 		print_message "${BLUE}Pushing new branch ${NC}$target_branch${BLUE} to remote...${NC}"
 		if ! git -c color.ui=always push -u origin "$target_branch" 2>&1 | indent; then
 			print_message "${RED}Failed to push new branch ${NC}$target_branch${RED} to remote. [Fail]${NC}"
-			exit 1
+			return 1
 		fi
 
 		print_message "${created_worktree_message}"
@@ -255,7 +322,7 @@ create_worktree() {
 
 	if [ $worktree_exit_code -ne 0 ]; then
 		print_message "${failed_worktree_message}"
-		exit 1
+		return 1
 	fi
 
 	print_message "${created_worktree_message}"
@@ -271,14 +338,16 @@ reset_to_target_branch() {
 	fi
 
 	if [ -z "$target_branch" ]; then
-		print_message "${RED}Target branch is not set. [Fail]${NC}"
+		print_message "" -1
+		print_message "${RED}Target branch is not set. [Fail]${NC}" -1
 		exit 1
 	fi
 
 	print_message "${BLUE}Resetting to ${NC}origin/${target_branch}${BLUE}...${NC}" $step_number
 
 	if ! git -c color.ui=always reset --hard "origin/${target_branch}" 2>&1 | indent; then
-		print_message "${RED}Failed to reset to ${NC}origin/${target_branch}${RED}. [Fail]${NC}"
+		print_message "" -1
+		print_message "${RED}Failed to reset to ${NC}origin/${target_branch}${RED}. [Fail]${NC}" -1
 		exit 1
 	fi
 
@@ -294,13 +363,15 @@ pull_changes() {
 	fi
 
 	if [ -z "$target_branch" ]; then
-		print_message "${RED}Target branch is not set. [Fail]${NC}"
+		print_message "" -1
+		print_message "${RED}Target branch is not set. [Fail]${NC}" -1
 		exit 1
 	fi
 
 	print_message "${BLUE}Pulling changes from ${NC}remote/${target_branch}${BLUE}...${NC}" $step_number
 	if ! git -c color.ui=always pull origin "${target_branch}" 2>&1 | indent; then
-		print_message "${RED}Failed to pull changes from remote. [Fail]${NC}"
+		print_message "" -1
+		print_message "${RED}Failed to pull changes from remote. [Fail]${NC}" -1
 		exit 1
 	fi
 	print_message "${GREEN}Pulled changes from ${NC}remote/${target_branch} ${GREEN}successfully.${NC}"
@@ -316,7 +387,8 @@ push_changes() {
 	fi
 
 	if [ -z "$target_branch" ]; then
-		print_message "${RED}Target branch is not set. [Fail]${NC}"
+		print_message "" -1
+		print_message "${RED}Target branch is not set. [Fail]${NC}" -1
 		exit 1
 	fi
 
@@ -328,8 +400,9 @@ push_changes() {
 
 		if [ -n "$local_commit" ] && [ -n "$remote_commit" ] && [ "$local_commit" != "$remote_commit" ]; then
 			if ! git merge-base --is-ancestor "origin/${target_branch}" "${target_branch}" 2>/dev/null; then
-				print_message "${RED}Error: Your local branch is behind or has diverged from remote.${NC}" 0
-				print_message "${RED}Use ${NC}--force${RED} flag if you want to force push.${NC}" 0
+				print_message "" -1
+				print_message "${RED}Error: Your local branch is behind or has diverged from remote.${NC}" -1
+				print_message "${RED}Use ${NC}--force${RED} flag if you want to force push.${NC}" -1
 				exit 1
 			fi
 		fi
@@ -338,13 +411,15 @@ push_changes() {
 	if [ "$should_force_push" = "true" ]; then
 		print_message "${BLUE}Force pushing changes to ${NC}remote/${target_branch}${BLUE}...${NC}" $step_number
 		if ! git -c color.ui=always push --force origin "${target_branch}" 2>&1 | indent; then
-			print_message "${RED}Failed to force push changes to remote. [Fail]${NC}"
+			print_message "" -1
+			print_message "${RED}Failed to force push changes to remote. [Fail]${NC}" -1
 			exit 1
 		fi
 	else
 		print_message "${BLUE}Pushing changes to ${NC}remote/${target_branch}${BLUE}...${NC}" $step_number
 		if ! git -c color.ui=always push origin "${target_branch}" 2>&1 | indent; then
-			print_message "${RED}Failed to push changes to remote. [Fail]${NC}"
+			print_message "" -1
+			print_message "${RED}Failed to push changes to remote. [Fail]${NC}" -1
 			exit 1
 		fi
 	fi
@@ -353,8 +428,12 @@ push_changes() {
 
 already_on_branch() {
 	local target_branch=$1
-	print_message "${BLUE}Checking current branch...${NC}" 1
-	current_branch=$(fetch_current_branch true)
+	local step_number=$2
+	if [ -z "$step_number" ]; then
+		step_number=1
+	fi
+	print_message "${BLUE}Checking current branch...${NC}" $step_number
+	current_branch=$(get_current_branch)
 	if [ "${target_branch}" = "${current_branch}" ]; then
 		print_message "${GREEN}Already on branch ${NC}${target_branch}${GREEN}. [DONE]${NC}"
 		exit 1
@@ -364,20 +443,51 @@ already_on_branch() {
 check_if_target_branch_is_set() {
 	local target_branch=$1
 	if [ -z "${target_branch}" ]; then
-		print_message "${RED}Error: No target branch specified, use -t or --target-branch option.${NC}"
+		print_message "" -1
+		print_message "${RED}Error: No target branch specified, use -t or --target-branch option.${NC}" -1
 		exit 1
 	fi
 }
 
 navigate_to_dir() {
 	local dir=$1
-	if pwd | grep -q "$dir"; then
+	if pwd | grep -Fq "$dir"; then
 		return 0
 	fi
 	if ! cd "$dir" 2>/dev/null; then
 		return 1
 	fi
 	return 0
+}
+
+navigate_to_main_dir() {
+	# Auto-detect main directory
+	local current_dir=$(pwd)
+	local current_dirname=$(basename "$current_dir")
+	local parent_dirname=$(basename "$(dirname "$current_dir")")
+
+	# Already in main directory (but not nested main/main)
+	if [ "$current_dirname" = "main" ] && [ "$parent_dirname" != "main" ]; then
+		return 0
+	fi
+
+	# Try ../main
+	if [ -d "../main" ]; then
+		if navigate_to_dir "../main"; then
+			return 0
+		fi
+	fi
+
+	# Try ../../main
+	if [ -d "../../main" ]; then
+		if navigate_to_dir "../../main"; then
+			return 0
+		fi
+	fi
+
+	print_message "" -1
+	print_message "${RED}Failed to find main directory. [Fail]${NC}" -1
+	exit 1
 }
 
 check_uncommitted_changes() {
@@ -392,7 +502,8 @@ is_git_repo() {
 	local original_path=$PWD
 
 	if ! navigate_to_dir "$dir"; then
-		print_message "${RED}Failed to navigate to directory: ${NC}${dir}${RED}. [Fail]${NC}" 0
+		print_message "" -1
+		print_message "${RED}Failed to navigate to directory: ${NC}${dir}${RED}. [Fail]${NC}" -1
 		exit 1
 	fi
 
@@ -410,7 +521,8 @@ has_uncommitted_changes() {
 	local worktree_path=$1
 
 	if ! navigate_to_dir "$worktree_path"; then
-		print_message "${RED}Failed to navigate to worktree directory: ${NC}${worktree_path}${RED}. [Fail]${NC}" 0
+		print_message "" -1
+		print_message "${RED}Failed to navigate to worktree directory: ${NC}${worktree_path}${RED}. [Fail]${NC}" -1
 		exit 1
 	fi
 
@@ -420,14 +532,16 @@ has_uncommitted_changes() {
 
 	if ! check_uncommitted_changes; then
 		if ! navigate_to_dir "$original_path"; then
-			print_message "${RED}Failed to navigate to original directory: ${NC}${original_path}${RED}. [Fail]${NC}" 0
+			print_message "" -1
+			print_message "${RED}Failed to navigate to original directory: ${NC}${original_path}${RED}. [Fail]${NC}" -1
 			exit 1
 		fi
 		return 0
 	fi
 
 	if ! navigate_to_dir "$original_path"; then
-		print_message "${RED}Failed to navigate to original directory: ${NC}${original_path}${RED}. [Fail]${NC}" 0
+		print_message "" -1
+		print_message "${RED}Failed to navigate to original directory: ${NC}${original_path}${RED}. [Fail]${NC}" -1
 		exit 1
 	fi
 	return 1
@@ -461,4 +575,17 @@ copy_to_clipboard() {
 	if [ -n "$message" ]; then
 		print_message "${GREEN}${message}${NC}"
 	fi
+}
+
+get_repo_name() {
+	# Try to get repo name from git remote
+	local remote_url=$(git config --get remote.origin.url 2>/dev/null)
+	if [ -n "$remote_url" ]; then
+		# Extract repo name from URL (handles both https and ssh)
+		echo "$remote_url" | sed -E 's#.*/([^/]+)(\.git)?$#\1#' | sed 's/\.git$//'
+		return 0
+	fi
+
+	# Fallback to directory name
+	basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 }
