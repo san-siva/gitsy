@@ -1,5 +1,6 @@
 # gitsy
 
+![gitsy in action](images/demo.png)
 A set of bash utilities for managing Git repositories with ease. Provides user-friendly commands with helpful prompts, color-coded outputs, and automation.
 
 ## Documentation
