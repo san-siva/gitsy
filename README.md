@@ -6,39 +6,44 @@ A set of bash utilities for managing Git repositories with ease. Provides user-f
 
 For complete documentation, usage examples, and detailed command reference, visit the [gitsy documentation website](https://gitsy-56895.web.app).
 
+## System Requirements
+
+- Node.js >= 12.0.0
+- Bash shell
+- Git
+- Supported OS: macOS, Linux
+
 ## Available Commands
 
-- `g-co` - Checkout branch
-- `g-pull` - Pull changes from remote
-- `g-push` - Push changes to remote
-- `g-wa` - Create git worktree
-- `g-wr` - Remove git worktree
-- `g-db` - Delete branch
-- `g-dlc` - Discard last commit
-- `g-rmf` - Stash working directory
-- `g-rto` - Reset to remote branch
-- `g-cb` - Show current branch
-- `g-s` - Show git status
-- `g-diff` - Compare branches
+| Command | Description |
+|---------|-------------|
+| `g-s` | Show git status with colorful output |
+| `g-cb` | Display current branch name |
+| `g-co` | Checkout branch with optional stashing |
+| `g-pull` | Pull changes from remote branch |
+| `g-push` | Push changes to remote (supports force push) |
+| `g-wa` | Create git worktree for a branch |
+| `g-wr` | Remove git worktree |
+| `g-db` | Delete branch locally and remotely |
+| `g-dlc` | Discard last commit |
+| `g-rmf` | Stash working directory changes |
+| `g-rto` | Reset to remote branch |
+| `g-diff` | Compare changes between branches |
 
 ## Installation
 
-### Quick Install (npm)
-
-Install globally using npm:
+Install gitsy globally with npm:
 
 ```bash
 npm install -g gitsy
 ```
 
+That's it! All commands (`g-s`, `g-co`, `g-pull`, etc.) will be available immediately.
+
 ### Prerequisites
 
-Ensure you have the following dependencies installed:
-- `git` - Version control system
-- `figlet` - ASCII art text generator
-- `lolcat` - Colorful output formatter
+You'll also need these dependencies installed:
 
-Install dependencies:
 ```bash
 # macOS
 brew install git figlet lolcat
@@ -56,48 +61,131 @@ sudo dnf install git figlet lolcat
 g-s --help
 ```
 
-### Manual Installation (Alternative)
+### Troubleshooting
 
-If you prefer to install manually:
+**Commands not found:**
+- Ensure npm global bin directory is in your PATH
+- Try: `npm uninstall -g gitsy && npm install -g gitsy`
 
-1. Clone the repository:
-```bash
-git clone https://github.com/san-siva/gitsy.git
-cd gitsy
-```
+**Missing dependencies:**
+- Verify with: `git --version`, `figlet --version`, `lolcat --version`
 
-2. Install dependencies (see Prerequisites above)
-
-3. Add gitsy to your PATH by adding this line to your shell configuration file (`~/.bashrc`, `~/.zshrc`, or `~/.bash_profile`):
-```bash
-export PATH="$PATH:$HOME/path/to/gitsy"
-```
-
-4. Reload your shell configuration:
-```bash
-# For bash
-source ~/.bashrc
-
-# For zsh
-source ~/.zshrc
-```
+**Permission errors:**
+- Use `sudo npm install -g gitsy` on some systems
+- Or configure npm user directory: `npm config set prefix ~/.npm-global`
 
 ## Usage
 
-Run any command with `--help` to see available options:
+All gitsy commands support the `--help` flag for detailed usage information:
+
 ```bash
 g-co --help
 ```
 
+### Quick Examples
+
+**Check git status:**
+```bash
+g-s
+```
+
+**Checkout a branch:**
+```bash
+g-co -t feature-branch
+```
+
+**Create a new worktree:**
+```bash
+g-wa -t new-feature
+```
+
+**Pull latest changes:**
+```bash
+g-pull
+```
+
+**Push changes to remote:**
+```bash
+g-push
+```
+
+**Compare branches:**
+```bash
+g-diff -s main -t feature-branch
+```
+
+For complete command documentation and advanced usage examples, visit the [gitsy documentation website](https://gitsy-56895.web.app).
+
+## Features
+
+- **Interactive prompts** - User-friendly command-line prompts guide you through operations
+- **Color-coded output** - Easy-to-read, colorful terminal output powered by lolcat
+- **Safety checks** - Built-in validations prevent common git mistakes
+- **Automation** - Streamlines complex git workflows into single commands
+- **Worktree management** - Simplified git worktree creation and removal
+- **Branch operations** - Quick branch switching, creation, and deletion
+
 ## Contributing
 
-Contributions are welcome! Please fork the repo and submit pull requests. For bugs or feature requests, open an issue on the repository.
+Contributions are welcome! Here's how to contribute:
+
+### Development Setup
+
+1. **Fork and clone** the repository:
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/gitsy.git
+   cd gitsy
+   ```
+
+2. **Install dependencies** (git, figlet, lolcat)
+
+3. **Link for local development**:
+   ```bash
+   npm link
+   ```
+   This creates symlinks so you can test your changes globally.
+
+4. **Create a feature branch**:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+5. **Make your changes** and test thoroughly
+
+6. **Validate syntax**:
+   ```bash
+   npm test
+   ```
+
+7. **Commit and push**:
+   ```bash
+   git commit -m "Description of your changes"
+   git push origin feature/your-feature-name
+   ```
+
+8. **Create a Pull Request** on GitHub
+
+### Reporting Issues
+
+Found a bug or have a feature request? Please [open an issue](https://github.com/san-siva/gitsy/issues) with:
+- A clear description of the problem or suggestion
+- Steps to reproduce (for bugs)
+- Expected vs actual behavior
+- Your environment (OS, Node version, shell)
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License. See the LICENSE file for details.
 
-## Contact
+## Author
 
-Author: Santhosh Siva
-GitHub: https://github.com/san-siva
+**Santhosh Siva**
+- GitHub: [@san-siva](https://github.com/san-siva)
+- Documentation: [gitsy-56895.web.app](https://gitsy-56895.web.app)
+
+## Acknowledgments
+
+Built with:
+- [figlet](http://www.figlet.org/) - ASCII art text generator
+- [lolcat](https://github.com/busyloop/lolcat) - Rainbow colorizer
+- Bash - The GNU Bourne Again Shell

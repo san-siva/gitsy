@@ -7,7 +7,15 @@
 # A script to clear your working directory by stashing changes.
 # The stashed changes is tagged with the current date and time.
 
-source "$(dirname "${BASH_SOURCE[0]}")/utils"
+# Resolve script directory (works with symlinks for npm global install)
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+source "$SCRIPT_DIR/utils"
 
 # Default Values
 tag_message=

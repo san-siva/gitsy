@@ -104,11 +104,21 @@ options:
 };
 
 export const CODE_EXAMPLES = {
-	installation: `git clone https://github.com/san-siva/gitsy.git
-cd gitsy
+	installation: `# Install globally via npm
+npm install -g gitsy
 
-# Add to your PATH in .bashrc or .zshrc
-export PATH="$PATH:/path/to/gitsy"`,
+# Install dependencies (required)
+# macOS
+brew install git figlet lolcat
+
+# Ubuntu/Debian
+sudo apt-get install git figlet lolcat
+
+# Fedora/RHEL
+sudo dnf install git figlet lolcat
+
+# Verify installation
+g-s --help`,
 
 	checkout: `# Checkout to a branch
 g-co -t feature/xyz

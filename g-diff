@@ -6,7 +6,15 @@
 # Description:
 # A script to compare changes between two git branches.
 
-source "$(dirname "${BASH_SOURCE[0]}")/utils"
+# Resolve script directory (works with symlinks for npm global install)
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+source "$SCRIPT_DIR/utils"
 
 target_branch=""
 source_branch=""

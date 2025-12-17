@@ -7,7 +7,15 @@
 # A script to quickly reset your working directory to the latest changes from the remote branch.
 # In case you ran this command by mistake, you can use the `git stash apply` command to restore your changes.
 
-source "$(dirname "${BASH_SOURCE[0]}")/utils"
+# Resolve script directory (works with symlinks for npm global install)
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+source "$SCRIPT_DIR/utils"
 
 set_flags() {
 	while [ $# -gt 0 ]; do

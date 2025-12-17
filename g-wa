@@ -7,7 +7,15 @@
 # This script creates a new git worktree for a specified branch.
 # If the branch does not exist, it prompts the user to create it.
 
-source "$(dirname "${BASH_SOURCE[0]}")/utils"
+# Resolve script directory (works with symlinks for npm global install)
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+source "$SCRIPT_DIR/utils"
 
 # Default Values
 stash=false

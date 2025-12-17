@@ -27,6 +27,16 @@ export default function Home() {
 				</p>
 			</BlogSection>
 
+			<BlogSection title="System Requirements">
+				<ul>
+					<li>Node.js &gt;= 12.0.0</li>
+					<li>Bash shell</li>
+					<li>Git</li>
+					<li>Dependencies: figlet, lolcat</li>
+					<li>Supported OS: macOS, Linux</li>
+				</ul>
+			</BlogSection>
+
 			<BlogSection title="Command Reference">
 				<Table
 					headers={['Command', 'Description', 'Key Flags']}
@@ -146,13 +156,16 @@ export default function Home() {
 			</BlogSection>
 
 			<BlogSection title="Installation">
-				<p>Clone the repository and optionally add it to your PATH:</p>
+				<p>Install gitsy globally using npm. You&apos;ll also need to install the required dependencies (git, figlet, lolcat) for your platform:</p>
 				<CodeBlock
 					language="bash"
 					code={CODE_EXAMPLES.installation}
 					hasMarginUp
 					hasMarginDown
 				/>
+				<p className={styles['margin-top--2']}>
+					Once installed, all commands (<code>g-s</code>, <code>g-co</code>, <code>g-pull</code>, etc.) will be available globally in your terminal.
+				</p>
 			</BlogSection>
 
 			<BlogSection title="Commands">
