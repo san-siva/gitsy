@@ -23,7 +23,7 @@ For complete documentation, usage examples, and detailed command reference, visi
 | `g-co` | Checkout branch with optional stashing |
 | `g-pull` | Pull changes from remote branch |
 | `g-push` | Push changes to remote (supports force push) |
-| `g-wa` | Create git worktree for a branch |
+| `g-wa` | Create git worktree with automatic repository restructuring |
 | `g-wr` | Remove git worktree |
 | `g-db` | Delete branch locally and remotely |
 | `g-dlc` | Discard last commit |
@@ -100,6 +100,34 @@ g-co -t feature-branch
 g-wa -t new-feature
 ```
 
+### Understanding g-wa: Worktree Management
+
+`g-wa` intelligently manages git worktrees with automatic repository restructuring:
+
+**First-time setup:**
+- Automatically detects if your repository needs restructuring
+- Moves your repository into a `main` subdirectory
+- Creates a `worktrees` directory for branch isolation
+- Provides clear step-by-step feedback throughout the process
+
+**Structure after setup:**
+```
+your-repo/
+├── main/           # Your default branch (main/master)
+└── worktrees/      # All feature branch worktrees
+    ├── feature_1/
+    ├── feature_2/
+    └── bugfix_abc/
+```
+
+**Key features:**
+- Only creates worktrees from the default branch (main/master)
+- Automatically sanitizes branch names for directory creation
+- Converts paths to absolute paths for clarity
+- Checks for existing worktrees to prevent duplicates
+- Prompts to create new branches if they don't exist
+- Automatically pushes new branches to remote
+
 **Pull latest changes:**
 ```bash
 g-pull
@@ -123,8 +151,9 @@ For complete command documentation and advanced usage examples, visit the [gitsy
 - **Color-coded output** - Easy-to-read, colorful terminal output powered by lolcat
 - **Safety checks** - Built-in validations prevent common git mistakes
 - **Automation** - Streamlines complex git workflows into single commands
-- **Worktree management** - Simplified git worktree creation and removal
+- **Intelligent worktree management** - Automatic repository restructuring for seamless worktree workflows
 - **Branch operations** - Quick branch switching, creation, and deletion
+- **Step-by-step feedback** - Clear progress indicators show exactly what's happening
 
 ## Contributing
 

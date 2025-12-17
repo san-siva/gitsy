@@ -109,7 +109,7 @@ export default function Home() {
 						[
 							<code>g-wa</code>,
 							'Create Worktree',
-							'Create a new git worktree in ../worktrees with sanitized branch name (e.g. feature/foo → feature_foo).',
+							'Create a new git worktree with automatic repository restructuring. Organizes your repo into main/ and worktrees/ directories for better branch isolation.',
 						],
 						[
 							<code>g-wr</code>,
@@ -274,8 +274,9 @@ export default function Home() {
 
 				<BlogSection title="g-wa - Create Git Worktree">
 					<p className={styles['margin-bottom--2']}>
-						Create a new git worktree for a specified branch in{' '}
-						<code>../worktrees</code> directory, optionally stashing changes.
+						Create a new git worktree with intelligent repository restructuring.
+						On first use, automatically reorganizes your repository to support
+						multiple worktrees.
 					</p>
 					<CodeBlock
 						language="bash"
@@ -290,35 +291,95 @@ export default function Home() {
 						hasMarginUp
 						hasMarginDown
 					/>
+
+					<Callout type="info" hasMarginDown>
+						<p>
+							<strong>Repository Restructuring:</strong> On first use,{' '}
+							<code>g-wa</code> will automatically reorganize your repository:
+						</p>
+						<ul>
+							<li>
+								Moves your repository into a <code>main/</code> subdirectory
+							</li>
+							<li>
+								Creates a <code>worktrees/</code> directory for feature branches
+							</li>
+							<li>Provides step-by-step feedback throughout the process</li>
+							<li>Requires confirmation before making any changes</li>
+						</ul>
+						<p className={styles['margin-top--2']}>
+							<strong>Final structure:</strong>
+						</p>
+						<CodeBlock
+							language="text"
+							code={CODE_EXAMPLES.worktreeStructure}
+							hasMarginUp
+						/>
+					</Callout>
+
 					<p className={styles['margin-bottom--2']}>
 						The command will automatically:
 					</p>
 					<ul>
 						<li>
-							Create the <code>../worktrees</code> directory if it doesn't exist
+							<strong>Repository restructuring (first time only):</strong>
+							<ul>
+								<li>Detect if restructuring is needed</li>
+								<li>
+									Move repository contents to <code>main/</code> subdirectory
+								</li>
+								<li>
+									Create <code>worktrees/</code> directory structure
+								</li>
+								<li>Checkout default branch in main directory</li>
+							</ul>
 						</li>
 						<li>
-							Sanitize branch name (lowercase, replace special chars with{' '}
-							<code>_</code>)
+							<strong>Worktree creation:</strong>
+							<ul>
+								<li>Check if worktree already exists for the branch</li>
+								<li>
+									Sanitize branch name (lowercase, replace special chars with{' '}
+									<code>_</code>)
+								</li>
+								<li>
+									Convert to absolute path for clarity (e.g.{' '}
+									<code>
+										/Users/you/projects/your-repo/worktrees/feature_name
+									</code>
+									)
+								</li>
+								<li>
+									Truncate long names to 30 characters with ".." suffix (e.g.{' '}
+									<code>feature/this-is-a-very-long-branch-name</code> →{' '}
+									<code>feature_this_is_a_very_long_br..</code>)
+								</li>
+								<li>Check if branch exists locally or remotely</li>
+								<li>Prompt to create new branch if it doesn't exist</li>
+								<li>Automatically push new branches to remote</li>
+							</ul>
 						</li>
 						<li>
-							Create worktree in <code>../worktrees/sanitized_branch_name</code>{' '}
-							(e.g. <code>feature/my-branch</code> →{' '}
-							<code>feature_my_branch</code>)
-						</li>
-						<li>
-							Truncate to 30 characters with ".." suffix if name is too long
-							(e.g.{' '}
-							<code>feature/this-is-a-very-long-branch-name-that-exceeds</code>{' '}
-							→ <code>feature_this_is_a_very_long_br..</code>)
-						</li>
-						<li>Check if the branch exists locally or remotely</li>
-						<li>Prompt to create a new branch if it doesn't exist</li>
-						<li>Push the new branch to remote</li>
-						<li>
-							Stash changes if <code>--stash-changes</code> flag is provided
+							<strong>Safety features:</strong>
+							<ul>
+								<li>Only works from default branch (main/master)</li>
+								<li>Prevents duplicate worktrees</li>
+								<li>
+									Optional stashing with <code>--stash-changes</code> flag
+								</li>
+								<li>Clear error messages with actionable guidance</li>
+							</ul>
 						</li>
 					</ul>
+
+					<Callout type="warning" hasMarginDown>
+						<p>
+							<strong>Important:</strong> Worktrees can only be created from
+							the default branch (main/master). If you&apos;re on a different
+							branch, commit or stash your changes, checkout to the default
+							branch, and try again.
+						</p>
+					</Callout>
 				</BlogSection>
 
 				<BlogSection title="g-wr - Remove Git Worktree">

@@ -185,4 +185,11 @@ g-diff -t main --files-only
 
 # Full diff (copies formatted diff to clipboard)
 g-diff -t main --full`,
+
+	worktreeStructure: `your-repo/
+├── main/           # Default branch (main/master)
+└── worktrees/      # Feature branch worktrees
+    ├── feature_1/
+    ├── feature_2/
+    └── bugfix_abc/`,
 };
