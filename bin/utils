@@ -394,16 +394,19 @@ push_changes() {
 
 	# Check if local branch is behind remote
 	if [ "$should_force_push" = "false" ]; then
-		fetch_changes "${target_branch}" >/dev/null 2>&1
-		local local_commit=$(git rev-parse "${target_branch}" 2>/dev/null)
-		local remote_commit=$(git rev-parse "origin/${target_branch}" 2>/dev/null)
+		# Check if the remote branch actually exists
+		if branch_exists_on_remote "${target_branch}"; then
+			fetch_changes "${target_branch}" >/dev/null 2>&1
+			local local_commit=$(git rev-parse "${target_branch}" 2>/dev/null)
+			local remote_commit=$(git rev-parse "origin/${target_branch}" 2>/dev/null)
 
-		if [ -n "$local_commit" ] && [ -n "$remote_commit" ] && [ "$local_commit" != "$remote_commit" ]; then
-			if ! git merge-base --is-ancestor "origin/${target_branch}" "${target_branch}" 2>/dev/null; then
-				print_message "" -1
-				print_message "${RED}Error: Your local branch is behind or has diverged from remote.${NC}" -1
-				print_message "${RED}Use ${NC}--force${RED} flag if you want to force push.${NC}" -1
-				exit 1
+			if [ -n "$local_commit" ] && [ -n "$remote_commit" ] && [ "$local_commit" != "$remote_commit" ]; then
+				if ! git merge-base --is-ancestor "origin/${target_branch}" "${target_branch}" 2>/dev/null; then
+					print_message "" -1
+					print_message "${RED}Error: Your local branch is behind or has diverged from remote.${NC}" -1
+					print_message "${RED}Use ${NC}--force${RED} flag if you want to force push.${NC}" -1
+					exit 1
+				fi
 			fi
 		fi
 	fi
@@ -417,7 +420,7 @@ push_changes() {
 		fi
 	else
 		print_message "${BLUE}Pushing changes to ${NC}remote/${target_branch}${BLUE}...${NC}" $step_number
-		if ! git -c color.ui=always push origin "${target_branch}" 2>&1 | indent; then
+		if ! git -c color.ui=always push -u origin "${target_branch}" 2>&1 | indent; then
 			print_message "" -1
 			print_message "${RED}Failed to push changes to remote. [Fail]${NC}" -1
 			exit 1
