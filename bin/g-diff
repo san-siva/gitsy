@@ -171,6 +171,7 @@ show_files_only() {
 
 	if [ -n "$filenames" ]; then
 		echo "$filenames" | indent
+		copy_to_clipboard "$filenames" "Filenames copied to clipboard."
 	else
 		print_message "${BLUE}No changes found between ${NC}${source_branch}${BLUE} and ${NC}${target_branch}${BLUE}.${NC}"
 	fi
