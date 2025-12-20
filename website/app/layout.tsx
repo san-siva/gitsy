@@ -1,45 +1,48 @@
 import type { Metadata } from 'next';
-import { Montserrat, Rubik, JetBrains_Mono } from 'next/font/google';
+import { JetBrains_Mono, Montserrat, Rubik } from 'next/font/google';
 
 import '@san-siva/stylekit/globals.scss';
 import styles from '@san-siva/stylekit/index.module.scss';
+
 import '@san-siva/blogkit/styles.css';
 
 const montserrat = Montserrat({
-	weight: ['400', '500', '600', '700', '800'],
-	subsets: ['latin'],
+	subsets: ['latin'] as const,
+	weight: ['400', '500', '600', '700', '800'] as const,
+	style: ['normal', 'italic'] as const,
 	variable: '--font-montserrat',
 });
 
 const rubik = Rubik({
-	weight: ['300', '400', '500', '600', '700', '800', '900'],
-	subsets: ['latin'],
+	subsets: ['latin'] as const,
+	weight: ['300', '400', '500', '600', '700', '800', '900'] as const,
+	style: ['normal', 'italic'] as const,
 	variable: '--font-rubik',
 });
 
 const jetbrainsMono = JetBrains_Mono({
-	weight: ['400', '500', '600', '700'],
-	subsets: ['latin'],
+	subsets: ['latin'] as const,
+	weight: ['400', '500', '600', '700'] as const,
+	style: ['normal', 'italic'] as const,
 	variable: '--font-jetbrains-mono',
 });
 
 export const metadata: Metadata = {
-	title: 'Gitsy - Git Workflow Automation',
-	description:
-		'Versatile bash utilities for managing Git repositories with ease',
+	title: 'Blogkit - Documentation',
+	description: 'Blogkit component library documentation',
 };
 
 export default function RootLayout({
 	children,
-}: Readonly<{
+}: {
 	children: React.ReactNode;
-}>) {
+}) {
 	return (
 		<html lang="en">
 			<body
 				className={`${montserrat.variable} ${rubik.variable} ${jetbrainsMono.variable}`}
 			>
-				<div className={`${styles.page} ${styles['page--contents-max-width']}`}>
+				<div className={`${styles.page}`}>
 					{children}
 				</div>
 			</body>
