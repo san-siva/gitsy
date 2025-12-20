@@ -192,4 +192,36 @@ g-diff -t main --full`,
     ├── feature_1/
     ├── feature_2/
     └── bugfix_abc/`,
+
+	diffFullExample: `file: src/components/Button.tsx
+stats: +15 -8
+changes:
+
+   @@ -10,7 +10,9 @@ export function Button() {
+   -  const handleClick = () => {
+   -    console.log('clicked');
+   -  };
+   +  const handleClick = useCallback(() => {
+   +    console.log('Button clicked');
+   +    onAction();
+   +  }, [onAction]);
+
+file: src/utils/helper.ts
+stats: +3 -1
+changes:
+
+   @@ -5,7 +5,9 @@ export function formatDate() {
+   -  return new Date().toISOString();
+   +  return new Date().toLocaleString('en-US', {
+   +    dateStyle: 'medium'
+   +  });`,
+
+	diffStatsExample: `src/components/Button.tsx    | 23 ++++++---------
+src/utils/helper.ts         |  4 ++--
+src/pages/index.tsx         | 15 +++++++++++
+3 files changed, 28 insertions(+), 13 deletions(-)`,
+
+	diffFilesOnlyExample: `src/components/Button.tsx
+src/utils/helper.ts
+src/pages/index.tsx`,
 };

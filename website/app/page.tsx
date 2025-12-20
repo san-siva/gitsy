@@ -28,7 +28,7 @@ export default function Home() {
 				<Table
 					headers={['Requirement', 'Details']}
 					rows={[
-						['Node.js', <code>&gt;= 12.0.0</code>],
+						['Node.js', '>= 12.0.0'],
 						['Shell', 'Bash'],
 						['Version Control', 'Git'],
 						['Dependencies', 'figlet, lolcat'],
@@ -179,7 +179,7 @@ export default function Home() {
 					comprehensive guide on all available commands.
 				</p>
 
-				<BlogSection title="g-co - Checkout Branch">
+				<BlogSection title="Checkout Branch (g-co)">
 					<p className={styles['margin-bottom--2']}>
 						Checkout to a branch, with optional stash.
 					</p>
@@ -209,7 +209,7 @@ export default function Home() {
 					</ul>
 				</BlogSection>
 
-				<BlogSection title="g-pull - Pull Changes">
+				<BlogSection title="Pull Changes (g-pull)">
 					<p className={styles['margin-bottom--2']}>
 						Pull changes from a remote branch.
 					</p>
@@ -239,7 +239,7 @@ export default function Home() {
 					</ul>
 				</BlogSection>
 
-				<BlogSection title="g-push - Push Changes">
+				<BlogSection title="Push Changes (g-push)">
 					<p className={styles['margin-bottom--2']}>
 						Push changes to a remote branch, optionally with force.
 					</p>
@@ -277,7 +277,7 @@ export default function Home() {
 					</ul>
 				</BlogSection>
 
-				<BlogSection title="g-wa - Create Git Worktree">
+				<BlogSection title="Create Git Worktree (g-wa)">
 					<p className={styles['margin-bottom--2']}>
 						Create a new git worktree with intelligent repository restructuring.
 						On first use, automatically reorganizes your repository to support
@@ -298,7 +298,7 @@ export default function Home() {
 					/>
 
 					<Callout type="info" hasMarginDown>
-						<p>
+						<div>
 							<p className={styles['margin-bottom--1']}>
 								<strong>Repository Restructuring:</strong> On first use,{' '}
 								<code>g-wa</code> will automatically reorganize your repository:
@@ -322,7 +322,7 @@ export default function Home() {
 								code={CODE_EXAMPLES.worktreeStructure}
 								hasMarginUp
 							/>
-						</p>
+						</div>
 					</Callout>
 
 					<p className={styles['margin-bottom--2']}>
@@ -390,7 +390,7 @@ export default function Home() {
 					</Callout>
 				</BlogSection>
 
-				<BlogSection title="g-wr - Remove Git Worktree">
+				<BlogSection title="Remove Git Worktree (g-wr)">
 					<p className={styles['margin-bottom--2']}>
 						Remove a git worktree by branch name or worktree directory name.
 					</p>
@@ -418,7 +418,7 @@ export default function Home() {
 					</ul>
 				</BlogSection>
 
-				<BlogSection title="g-db - Delete Branch">
+				<BlogSection title="Delete Branch (g-db)">
 					<p className={styles['margin-bottom--2']}>
 						Delete a branch locally and optionally push the deletion to remote.
 					</p>
@@ -448,7 +448,7 @@ export default function Home() {
 					</ul>
 				</BlogSection>
 
-				<BlogSection title="g-dlc - Discard Last Commit">
+				<BlogSection title="Discard Last Commit (g-dlc)">
 					<p className={styles['margin-bottom--2']}>
 						Discard the last commit with optional force mode.
 					</p>
@@ -488,7 +488,7 @@ export default function Home() {
 					</ul>
 				</BlogSection>
 
-				<BlogSection title="g-rmf - Stash Working Directory">
+				<BlogSection title="Stash Working Directory (g-rmf)">
 					<p className={styles['margin-bottom--2']}>
 						Clear your working directory by stashing all changes with a
 						timestamped message.
@@ -516,7 +516,7 @@ export default function Home() {
 					</ul>
 				</BlogSection>
 
-				<BlogSection title="g-rto - Reset To Remote Branch">
+				<BlogSection title="Reset To Remote Branch (g-rto)">
 					<p className={styles['margin-bottom--2']}>
 						Reset your working directory hard to the latest remote branch,
 						stashing changes beforehand.
@@ -548,7 +548,7 @@ export default function Home() {
 					</ul>
 				</BlogSection>
 
-				<BlogSection title="g-cb - Current Branch">
+				<BlogSection title="Current Branch (g-cb)">
 					<p className={styles['margin-bottom--2']}>
 						Display the current git branch name.
 					</p>
@@ -575,7 +575,7 @@ export default function Home() {
 					</ul>
 				</BlogSection>
 
-				<BlogSection title="g-s - Git Status">
+				<BlogSection title="Git Status (g-s)">
 					<p className={styles['margin-bottom--2']}>
 						Show the output of <code>git status</code>.
 					</p>
@@ -602,7 +602,7 @@ export default function Home() {
 					</ul>
 				</BlogSection>
 
-				<BlogSection title="g-diff - Compare Branches">
+				<BlogSection title="Compare Branches (g-diff)">
 					<p className={styles['margin-bottom--2']}>
 						Compare and show differences between two branches.
 					</p>
@@ -642,10 +642,7 @@ export default function Home() {
 					</p>
 					<CodeBlock
 						language="text"
-						code={`src/components/Button.tsx    | 23 ++++++---------
-src/utils/helper.ts         |  4 ++--
-src/pages/index.tsx         | 15 +++++++++++
-3 files changed, 28 insertions(+), 13 deletions(-)`}
+						code={CODE_EXAMPLES.diffStatsExample}
 						hasMarginUp
 						hasMarginDown
 					/>
@@ -662,9 +659,7 @@ src/pages/index.tsx         | 15 +++++++++++
 					<p className={styles['margin-bottom--2']}>Example output:</p>
 					<CodeBlock
 						language="text"
-						code={`src/components/Button.tsx
-src/utils/helper.ts
-src/pages/index.tsx`}
+						code={CODE_EXAMPLES.diffFilesOnlyExample}
 						hasMarginUp
 						hasMarginDown
 					/>
@@ -686,28 +681,7 @@ src/pages/index.tsx`}
 					</p>
 					<CodeBlock
 						language="text"
-						code={`file: src/components/Button.tsx
-stats: +15 -8
-changes:
-
-   @@ -10,7 +10,9 @@ export function Button() {
-   -  const handleClick = () => {
-   -    console.log('clicked');
-   -  };
-   +  const handleClick = useCallback(() => {
-   +    console.log('Button clicked');
-   +    onAction();
-   +  }, [onAction]);
-
-file: src/utils/helper.ts
-stats: +3 -1
-changes:
-
-   @@ -5,7 +5,9 @@ export function formatDate() {
-   -  return new Date().toISOString();
-   +  return new Date().toLocaleString('en-US', {
-   +    dateStyle: 'medium'
-   +  });`}
+						code={CODE_EXAMPLES.diffFullExample}
 						hasMarginUp
 						hasMarginDown
 					/>
