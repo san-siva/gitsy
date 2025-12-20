@@ -28,8 +28,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-	title: 'Blogkit - Documentation',
-	description: 'Blogkit component library documentation',
+	title: 'Gitsy - Git commands, turbocharged',
+	description: 'Versatile bash utilities for managing Git repositories with ease. Automate common Git operations like checkout, push, pull, worktrees, and more.',
 };
 
 export default function RootLayout({
