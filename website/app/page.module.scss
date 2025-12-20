@@ -1,0 +1,13 @@
+@use '@san-siva/stylekit/index.module.scss' as styles;
+
+.blogLinkContainer {
+	margin-bottom: styles.space(3);
+	padding: styles.space(3);
+	background-color: styles.$color--base-background;
+	border-radius: styles.$border-radius;
+	border: 1px solid styles.$color--border;
+
+	> a {
+		margin-top: 0 !important;
+	}
+}

@@ -1,5 +1,3 @@
-'use client';
-
 import {
 	Blog,
 	BlogHeader,
@@ -7,16 +5,15 @@ import {
 	CodeBlock,
 	Callout,
 	Table,
-	BlogLink,
 } from '@san-siva/blogkit';
-import styles from '@san-siva/stylekit/index.module.scss';
+import styles from './page.module.scss';
 import { HELP_TEXT, CODE_EXAMPLES } from './codeExamples';
 
 export default function Home() {
 	return (
 		<Blog>
-			<BlogHeader title={['Introducing Gitsy']} desc={['17th December 2025']} />
-			<BlogSection>
+			<BlogHeader title={['Gitsy']} desc={['Git commands, turbocharged']} />
+			<BlogSection title="Overview">
 				<p>
 					<strong>Gitsy</strong> is a set of versatile bash utilities designed
 					to make managing Git repositories easier, faster, and more efficient.
@@ -28,13 +25,16 @@ export default function Home() {
 			</BlogSection>
 
 			<BlogSection title="System Requirements">
-				<ul>
-					<li>Node.js &gt;= 12.0.0</li>
-					<li>Bash shell</li>
-					<li>Git</li>
-					<li>Dependencies: figlet, lolcat</li>
-					<li>Supported OS: macOS, Linux</li>
-				</ul>
+				<Table
+					headers={['Requirement', 'Details']}
+					rows={[
+						['Node.js', <code>&gt;= 12.0.0</code>],
+						['Shell', 'Bash'],
+						['Version Control', 'Git'],
+						['Dependencies', 'figlet, lolcat'],
+						['Supported OS', 'macOS, Linux'],
+					]}
+				/>
 			</BlogSection>
 
 			<BlogSection title="Command Reference">
@@ -328,7 +328,7 @@ export default function Home() {
 					<p className={styles['margin-bottom--2']}>
 						The command will automatically:
 					</p>
-					<ul>
+					<ul className={styles['margin-bottom--2']}>
 						<li>
 							<strong>Repository restructuring (first time only):</strong>
 							<ul>

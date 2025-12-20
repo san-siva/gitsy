@@ -3,6 +3,7 @@ import { Montserrat, Rubik, JetBrains_Mono } from 'next/font/google';
 
 import '@san-siva/stylekit/globals.scss';
 import styles from '@san-siva/stylekit/index.module.scss';
+import '@san-siva/blogkit/styles.css';
 
 const montserrat = Montserrat({
 	weight: ['400', '500', '600', '700', '800'],
