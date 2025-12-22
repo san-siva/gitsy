@@ -281,7 +281,8 @@ export default function Home() {
 					<p className={styles['margin-bottom--2']}>
 						Create a new git worktree with intelligent repository restructuring.
 						On first use, automatically reorganizes your repository to support
-						multiple worktrees.
+						multiple worktrees. New branches are created from your current branch,
+						preserving your branch context.
 					</p>
 					<CodeBlock
 						language="bash"
@@ -340,6 +341,8 @@ export default function Home() {
 									Create <code>worktrees/</code> directory structure
 								</li>
 								<li>Checkout default branch in main directory</li>
+								<li>Create worktree for your original branch (if not on default branch)</li>
+								<li>Navigate to original branch worktree to preserve context</li>
 							</ul>
 						</li>
 						<li>
@@ -370,22 +373,23 @@ export default function Home() {
 						<li>
 							<strong>Safety features:</strong>
 							<ul>
-								<li>Only works from default branch (main/master)</li>
+								<li>New branches are created from your current branch (preserves branch context)</li>
 								<li>Prevents duplicate worktrees</li>
 								<li>
 									Optional stashing with <code>--stash-changes</code> flag
 								</li>
+								<li>Requires confirmation before restructuring or creating worktrees</li>
 								<li>Clear error messages with actionable guidance</li>
 							</ul>
 						</li>
 					</ul>
 
-					<Callout type="warning" hasMarginDown>
+					<Callout type="info" hasMarginDown>
 						<p>
-							<strong>Important:</strong> Worktrees can only be created from the
-							default branch (main/master). If you&apos;re on a different
-							branch, commit or stash your changes, checkout to the default
-							branch, and try again.
+							<strong>Branch Context:</strong> When creating a new branch, it will be cut from your current branch.
+							For example, if you&apos;re on <code>develop</code> and run <code>g-wa -t feature/new</code>,
+							the new branch will be created from <code>develop</code>, not from <code>main</code>.
+							This ensures your new branch inherits the correct context.
 						</p>
 					</Callout>
 				</BlogSection>

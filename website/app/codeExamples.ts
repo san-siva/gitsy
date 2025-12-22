@@ -139,6 +139,7 @@ g-push
 g-push --force`,
 
 	worktree: `# Create worktree for branch (creates ../worktrees/feature_new_feature)
+# If you're on develop, the new branch will be cut from develop
 g-wa -t feature/new-feature
 
 # With stash (creates ../worktrees/develop)

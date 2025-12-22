@@ -109,6 +109,7 @@ g-wa -t new-feature
 - Moves your repository into a `main` subdirectory
 - Creates a `worktrees` directory for branch isolation
 - Provides clear step-by-step feedback throughout the process
+- Requires confirmation before making any changes
 
 **Structure after setup:**
 ```
@@ -121,7 +122,9 @@ your-repo/
 ```
 
 **Key features:**
-- Only creates worktrees from the default branch (main/master)
+- Creates new branches from your current branch (preserves branch context)
+- If you're on `develop` and create a new branch, it will be cut from `develop`
+- During restructuring, automatically creates worktrees for both the original branch and target branch
 - Automatically sanitizes branch names for directory creation
 - Converts paths to absolute paths for clarity
 - Checks for existing worktrees to prevent duplicates
