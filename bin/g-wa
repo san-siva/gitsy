@@ -276,16 +276,17 @@ checkout_main_in_main_branch() {
 	print_message "${GREEN}Repository restructured successfully to ${NC}${repo_name}/main/${GREEN}. [DONE]${NC}"
 }
 
-should_trigger_from_default_branch() {
-	local default_branch=$1
-	local original_branch=$2
-
-	if [ "$original_branch" != "$default_branch" ]; then
+already_restructured() {
+	local current_dir=$(pwd)
+	if ! navigate_to_main_dir; then
+		return 1
+	fi
+	if ! navigate_to_dir "$current_dir"; then
 		print_message "" -1
-		print_message "${RED}Warning: We only support creating worktrees from the default branch.${NC}" -1
-		print_message "${RED}Commit or stash changes, checkout to ${NC}${default_branch}${RED}, and try again.${NC}" -1
+		print_message "${RED}Failed to navigate back to original directory. [Fail]${NC}" -1
 		exit 1
 	fi
+	return 0
 }
 
 create_main_dir_if_necessary() {
@@ -301,17 +302,12 @@ create_main_dir_if_necessary() {
 	local parent_dir=$(basename "$(dirname "$git_root")")
 	local repo_name=$(get_repo_name)
 
-	# Check if already in correct structure (repo_name/main/.git)
-	if [ "$current_dir" = "main" ] && [ "$parent_dir" = "$repo_name" ]; then
+	if already_restructured; then
 		return 0
 	fi
 
 	# Prompt user for restructuring
 	prompt_restructure_confirmation "$git_root" "$repo_name" "$default_branch" "$step_number"
-	local prompt_exit_code=$?
-	if [ $prompt_exit_code -ne 0 ]; then
-		exit $prompt_exit_code
-	fi
 
 	# Get parent directory path
 	local parent_path=$(dirname "$git_root")
@@ -329,18 +325,8 @@ create_main_dir_if_necessary() {
 
 	# Checkout the default branch into main directory
 	checkout_main_in_main_branch "$repo_name" "$main_dir" "$default_branch" $((step_number + 2))
-}
 
-create_target_dir_if_necessary() {
-	# Generate worktree path
-	local path=$(generate_worktree_path "${target_branch}" $step_number)
-
-	# Check if branch exists locally
-	if git show-ref --verify --quiet "refs/heads/${target_branch}"; then
-		try_fetching_branch
-		create_worktree "${target_branch}" "${path}"
-		return
-	fi
+	return 1
 }
 
 main() {
@@ -369,8 +355,6 @@ main() {
 	local default_branch=$(get_default_branch)
 	local current_branch=$(get_current_branch)
 
-	should_trigger_from_default_branch "$default_branch" "$current_branch"
-
 	local step_number=2
 	if [ "$stash" = true ]; then
 		step_number=3
@@ -381,18 +365,11 @@ main() {
 	local current_dir=$(basename "$git_root")
 	local parent_dir=$(basename "$(dirname "$git_root")")
 	local repo_name=$(get_repo_name)
-	local needs_restructure=false
-
-	if [ "$current_dir" != "main" ] || [ "$parent_dir" != "$repo_name" ]; then
-		needs_restructure=true
-	fi
-
 	create_main_dir_if_necessary "$default_branch" $step_number
+	local needs_restructure=$?
 
-	# Calculate next step number
 	local next_step=$((step_number + 1))
-	if [ "$needs_restructure" = true ]; then
-		# Restructuring uses 3 steps: prompt, move, checkout
+	if [ $needs_restructure -eq 1 ]; then
 		next_step=$((step_number + 3))
 	fi
 
