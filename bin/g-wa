@@ -78,7 +78,7 @@ check_branch_in_worktree() {
 	local branch=$1
 	local step_number=$2
 
-	print_message "${BLUE}Checking if branch exists in worktrees...${NC}" $step_number
+	print_message "${BLUE}Checking if ${NC}${branch}${BLUE} branch exists...${NC}" $step_number
 
 	# Check if branch is already checked out in another worktree
 	local existing_worktree=$(git worktree list | grep "\[${branch}\]" | awk '{print $1}')
@@ -92,7 +92,6 @@ check_branch_in_worktree() {
 
 generate_worktree_path() {
 	local target_branch=$1
-	local step_number=$2
 
 	# Determine worktree directory based on current location
 	local worktree_dir
@@ -142,7 +141,7 @@ checkout_or_create_branch() {
 	# Check if branch exists locally
 	if git show-ref --verify --quiet "refs/heads/${target_branch}"; then
 		try_fetching_branch
-		print_message "${BLUE}Creating worktree for branch ${NC}${target_branch}${BLUE} at ${NC}${path}${NC}" $((step_number + 1))
+		print_message "${BLUE}Creating ${NC}${target_branch}${BLUE} worktree...${NC}" $((step_number + 1))
 		create_worktree "${target_branch}" "${path}"
 		return
 	fi
@@ -153,7 +152,7 @@ checkout_or_create_branch() {
 	if git ls-remote --heads origin "${target_branch}" | grep -q "${target_branch}"; then
 		print_message "${GREEN}Branch available on remote.${NC}"
 		try_fetching_branch
-		print_message "${BLUE}Creating worktree for branch ${NC}${target_branch}${BLUE} at ${NC}${path}${NC}" $((step_number + 2))
+		print_message "${BLUE}Creating ${NC}${target_branch}${BLUE} worktree...${NC}" $((step_number + 2))
 		create_worktree "${target_branch}" "${path}"
 		return
 	fi
@@ -162,7 +161,7 @@ checkout_or_create_branch() {
 
 	create_new_branch=$(prompt_user true "Create new branch?" $((step_number + 2)))
 	if [ "${create_new_branch}" = "y" ]; then
-		print_message "${BLUE}Creating worktree for branch ${NC}${target_branch}${BLUE} at ${NC}${path}${NC}" $((step_number + 3))
+		print_message "${BLUE}Creating ${NC}${target_branch}${BLUE} worktree...${NC}" $((step_number + 3))
 		create_worktree "${target_branch}" "${path}" true
 		return
 	fi
@@ -177,6 +176,7 @@ prompt_restructure_confirmation() {
 	local repo_name=$2
 	local default_branch=$3
 	local step_number=$4
+	local target_branch=$5
 
 	# Save the current branch before restructuring
 	local original_branch=$(get_current_branch)
@@ -197,13 +197,24 @@ prompt_restructure_confirmation() {
 
 	# If not on default branch, mention worktree will be created
 	if [ "$original_branch" != "$default_branch" ]; then
-		local sanitized_name=$(sanitize_branch_name "$original_branch")
+		local sanitized_original=$(sanitize_branch_name "$original_branch")
+		local sanitized_target=$(sanitize_branch_name "$target_branch")
 		print_message "" 0 >&2
 		print_message "Note: You're currently on ${BLUE}${original_branch}${NC} (not ${BLUE}${default_branch}${NC})" 0 >&2
-		print_message "Two directories will be created:" 0 >&2
-		print_message "" 0 >&2
-		print_message "• ${BLUE}${repo_name}/main${NC} → ${BLUE}${default_branch}${NC} branch" 0 >&2
-		print_message "• ${BLUE}${repo_name}/worktrees/${sanitized_name}${NC} → ${BLUE}${original_branch}${NC} branch" 0 >&2
+
+		# Check if target branch is the same as original branch
+		if [ "$target_branch" = "$original_branch" ]; then
+			print_message "Two directories will be created:" 0 >&2
+			print_message "" 0 >&2
+			print_message "• ${BLUE}${repo_name}/main${NC} → ${BLUE}${default_branch}${NC} branch" 0 >&2
+			print_message "• ${BLUE}${repo_name}/worktrees/${sanitized_original}${NC} → ${BLUE}${original_branch}${NC} branch" 0 >&2
+		else
+			print_message "Three directories will be created:" 0 >&2
+			print_message "" 0 >&2
+			print_message "• ${BLUE}${repo_name}/main${NC} → ${BLUE}${default_branch}${NC} branch" 0 >&2
+			print_message "• ${BLUE}${repo_name}/worktrees/${sanitized_original}${NC} → ${BLUE}${original_branch}${NC} branch" 0 >&2
+			print_message "• ${BLUE}${repo_name}/worktrees/${sanitized_target}${NC} → ${BLUE}${target_branch}${NC} branch (cut from ${BLUE}${original_branch}${NC})" 0 >&2
+		fi
 	fi
 
 	# Prompt user for confirmation
@@ -266,7 +277,7 @@ checkout_main_in_main_branch() {
 	local step_number=$4
 
 	# Checkout the default branch into main
-	print_message "${BLUE}Checking out branch ${NC}${default_branch}${BLUE} into main directory...${NC}" $step_number
+	print_message "${BLUE}Creating main worktree...${NC}" $step_number
 	if ! git -c color.ui=always checkout "$default_branch" 2>&1 | indent; then
 		print_message "" -1
 		print_message "${RED}Failed to checkout ${NC}${default_branch}${RED} branch. [Fail]${NC}" -1
@@ -276,9 +287,40 @@ checkout_main_in_main_branch() {
 	print_message "${GREEN}Repository restructured successfully to ${NC}${repo_name}/main/${GREEN}. [DONE]${NC}"
 }
 
+checkout_current_branch() {
+	local step_number=$1
+	local default_branch=$2
+	local original_branch=$3
+
+	if [ -z "$step_number" ]; then
+		step_number=0
+	fi
+
+	if [ -z "$default_branch" ]; then
+		print_message "" -1
+		print_message "${RED}Default branch is not set. [Fail]${NC}" -1
+		exit 1
+	fi
+
+	if [ "$default_branch" = "$original_branch" ]; then
+		return 0
+	fi
+
+	local path=$(generate_worktree_path "$original_branch" $step_number)
+	print_message "${BLUE}Creating ${NC}${original_branch}${BLUE} worktree...${NC}" $step_number
+	create_worktree "$original_branch" "$path"
+
+	# Navigate to the created worktree
+	if ! navigate_to_dir "$path"; then
+		print_message "" -1
+		print_message "${RED}Failed to navigate to ${original_branch} worktree. [Fail]${NC}" -1
+		exit 1
+	fi
+}
+
 already_restructured() {
 	local current_dir=$(pwd)
-	if ! navigate_to_main_dir; then
+	if ! navigate_to_main_dir "false"; then
 		return 1
 	fi
 	if ! navigate_to_dir "$current_dir"; then
@@ -306,8 +348,11 @@ create_main_dir_if_necessary() {
 		return 0
 	fi
 
+	# Save original branch before restructuring
+	local original_branch=$(get_current_branch)
+
 	# Prompt user for restructuring
-	prompt_restructure_confirmation "$git_root" "$repo_name" "$default_branch" "$step_number"
+	prompt_restructure_confirmation "$git_root" "$repo_name" "$default_branch" "$step_number" "$target_branch"
 
 	# Get parent directory path
 	local parent_path=$(dirname "$git_root")
@@ -325,6 +370,9 @@ create_main_dir_if_necessary() {
 
 	# Checkout the default branch into main directory
 	checkout_main_in_main_branch "$repo_name" "$main_dir" "$default_branch" $((step_number + 2))
+
+	# Create worktree for original branch and navigate to it (if different from default)
+	checkout_current_branch $((step_number + 3)) "$default_branch" "$original_branch"
 
 	return 1
 }
@@ -371,6 +419,21 @@ main() {
 	local next_step=$((step_number + 1))
 	if [ $needs_restructure -eq 1 ]; then
 		next_step=$((step_number + 3))
+	else
+		# Notify user that worktree will be created
+		local sanitized_target=$(sanitize_branch_name "$target_branch")
+		print_message "" -1
+		print_message "${BLUE}Will create ${NC}${target_branch}${BLUE} worktree (cut from ${NC}${current_branch}${BLUE})${NC}" -1
+		print_message "Location: ${BLUE}${repo_name}/worktrees/${sanitized_target}${NC}" -1
+		print_message "" -1
+
+		# Prompt user for confirmation
+		local proceed=$(prompt_user false "Proceed with creating worktree?" "$next_step")
+		if [ "$proceed" != "y" ]; then
+			print_message "" -1
+			print_message "${RED}Worktree creation cancelled by user.${NC}" -1
+			exit 1
+		fi
 	fi
 
 	checkout_or_create_branch $next_step

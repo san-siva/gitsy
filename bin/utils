@@ -468,6 +468,7 @@ navigate_to_main_dir() {
 	local current_dir=$(pwd)
 	local current_dirname=$(basename "$current_dir")
 	local parent_dirname=$(basename "$(dirname "$current_dir")")
+	local should_exit_on_failure=$1
 
 	# Already in main directory (but not nested main/main)
 	if [ "$current_dirname" = "main" ] && [ "$parent_dirname" != "main" ]; then
@@ -488,9 +489,13 @@ navigate_to_main_dir() {
 		fi
 	fi
 
-	print_message "" -1
-	print_message "${RED}Failed to find main directory. [Fail]${NC}" -1
-	exit 1
+	if [ "$should_exit_on_failure" = "true" ]; then
+		print_message "" -1
+		print_message "${RED}Failed to find main directory. [Fail]${NC}" -1
+		exit 1
+	fi
+
+	return 1
 }
 
 check_uncommitted_changes() {
