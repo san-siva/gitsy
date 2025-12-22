@@ -40,12 +40,13 @@
   },
   "files": [
     "bin",
+    "completions",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "test": "bash -c 'for script in bin/g-*; do bash -n \"$script\" || exit 1; done'",
-    "postinstall": "echo '\\n✓ gitsy installed successfully!\\n\\nDependencies required: git, figlet, lolcat\\n\\nRun any command with --help to get started:\\n  g-s --help\\n\\nQuick example:\\n  g-s      # Show git status\\n\\nDocumentation: https://gitsy-56895.web.app\\n'"
+    "postinstall": "bash ./bin/postinstall.sh"
   },
   "engines": {
     "node": ">=12.0.0"
