@@ -87,27 +87,34 @@ set_flags() {
 }
 
 cd_to_worktrees_dir() {
-	local current_dir=$(pwd)
-	local current_dirname=$(basename "$current_dir")
-	if [ "$current_dirname" = "worktrees" ]; then
+	# Get git root and navigate to repo root's worktrees directory
+	local git_root=$(git rev-parse --show-toplevel)
+	local git_root_parent=$(dirname "$git_root")
+	local git_root_parent_name=$(basename "$git_root_parent")
+
+	# If we're in a worktree (parent is "worktrees"), use that directory
+	if [ "$git_root_parent_name" = "worktrees" ]; then
+		if ! navigate_to_dir "$git_root_parent"; then
+			print_message "" -1 >&2
+			print_message "${RED}Failed to navigate to worktrees directory. [Fail]${NC}" -1 >&2
+			exit 1
+		fi
 		return 0
 	fi
 
-	if [ -d "../worktrees" ]; then
-		if navigate_to_dir "../worktrees"; then
-			return 0
-		fi
+	# Otherwise, we're in main, so look for ../worktrees
+	local worktrees_dir="$git_root_parent/worktrees"
+	if [ ! -d "$worktrees_dir" ]; then
+		print_message "" -1 >&2
+		print_message "${RED}Worktrees directory not found at ${NC}${worktrees_dir}${RED}. [Fail]${NC}" -1 >&2
+		exit 1
 	fi
 
-	if [ -d "../../worktrees" ]; then
-		if navigate_to_dir "../../worktrees"; then
-			return 0
-		fi
+	if ! navigate_to_dir "$worktrees_dir"; then
+		print_message "" -1 >&2
+		print_message "${RED}Failed to navigate to worktrees directory. [Fail]${NC}" -1 >&2
+		exit 1
 	fi
-
-	print_message "" -1 >&2
-	print_message "${RED}Worktrees directory not found. [Fail]${NC}" -1 >&2
-	exit 1
 }
 
 find_worktree_by_name() {
@@ -122,13 +129,11 @@ find_worktree_by_name() {
 		fi
 
 		if [ "$dir" = "$worktree_name" ]; then
-			navigate_to_main_dir
 			echo "$worktrees_dir/$dir"
 			return 0
 		fi
 	done
 
-	navigate_to_main_dir
 	return 1
 }
 
@@ -145,26 +150,22 @@ find_worktree_by_branch() {
 			continue
 		fi
 
-		if ! navigate_to_dir "$dir"; then
+		local worktree_path="$worktrees_dir/$dir"
+		if ! navigate_to_dir "$worktree_path"; then
 			continue
 		fi
 
 		local branch=$(get_current_branch 2>/dev/null)
 		if [ -z "$branch" ]; then
-			navigate_to_dir "$worktrees_dir"
 			continue
 		fi
 
 		if [ "$branch" = "$target_branch" ]; then
-			navigate_to_main_dir
-			echo "$worktrees_dir/$dir"
+			echo "$worktree_path"
 			return 0
 		fi
-
-		navigate_to_dir "$worktrees_dir"
 	done
 
-	navigate_to_main_dir
 	return 1
 }
 
@@ -182,12 +183,18 @@ check_if_worktree_is_clean() {
 	local worktree_path=$1
 	local step_number=$2
 
+	print_message "${BLUE}Checking for uncommitted changes...${NC}" $step_number
+
 	if has_uncommitted_changes "$worktree_path"; then
-		response=$(prompt_user "false" "Your worktree has uncommitted changes. Do you want to discard them?" $step_number)
+		print_message "${PROMPT}Worktree has uncommitted changes.${NC}" 0
+		response=$(prompt_user "false" "Do you want to discard them and remove the worktree?" $step_number)
 		if [ "$response" = "n" ]; then
-			print_message "${RED}Skipping worktree removal.${NC}" 0
+			print_message "" -1
+			print_message "${RED}Worktree removal cancelled. Your changes are safe.${NC}" -1
 			exit 0
 		fi
+	else
+		print_message "${GREEN}No uncommitted changes found.${NC}" 0
 	fi
 }
 
@@ -197,27 +204,23 @@ remove_worktree() {
 
 	print_message "${BLUE}Removing worktree at ${NC}${worktree_path}${BLUE}...${NC}" $step_number
 
-	if [ -z "$worktree_name" ]; then
-		# Try using git worktree remove first with --force flag
-		if git -c color.ui=always worktree remove --force "$worktree_path" 2>&1 | indent; then
-			# Verify the directory was actually removed
-			if [ ! -d "$worktree_path" ]; then
-				print_message "${GREEN}Worktree removed successfully using git.${NC}" 0
-				return 0
-			fi
-		fi
-		print_message "${PROMPT}Git worktree remove incomplete. Attempting manual removal...${NC}" 0
-	fi
-
-	# Fallback to rm -rf
-	if rm -rf "$worktree_path" 2>&1 | indent; then
-		if [ -z "$worktree_name" ]; then
-			# Also need to prune the worktree from git's records
-			git -c color.ui=always worktree prune 2>&1 | indent
-		fi
+	# Always try using git worktree remove first with --force flag
+	if git -c color.ui=always worktree remove --force "$worktree_path" 2>&1 | indent; then
 		# Verify the directory was actually removed
 		if [ ! -d "$worktree_path" ]; then
-			print_message "${GREEN}Worktree removed successfully using rm -rf.${NC}" 0
+			print_message "${GREEN}Worktree removed successfully.${NC}" 0
+			return 0
+		fi
+	fi
+
+	# Fallback to rm -rf if git worktree remove failed
+	print_message "${PROMPT}Git worktree remove incomplete. Attempting manual removal...${NC}" 0
+	if rm -rf "$worktree_path" 2>&1 | indent; then
+		# Also need to prune the worktree from git's records
+		git -c color.ui=always worktree prune 2>&1 | indent
+		# Verify the directory was actually removed
+		if [ ! -d "$worktree_path" ]; then
+			print_message "${GREEN}Worktree removed successfully.${NC}" 0
 			return 0
 		fi
 	fi
@@ -262,7 +265,13 @@ main() {
 		print_message "${GREEN}Found worktree: ${NC}${worktree_dirname}${GREEN} at ${NC}${worktree_path}${NC}" $((step_number + 1))
 	fi
 
-	print_message "${BLUE}Checking for uncommitted changes...${NC}" $((step_number + 2))
+	# Prevent removal of main directory
+	if [ "$worktree_dirname" = "main" ]; then
+		print_message "" -1
+		print_message "${RED}Cannot remove main directory. This is your default branch worktree. [Fail]${NC}" -1
+		exit 1
+	fi
+
 	check_if_worktree_is_clean "$worktree_path" $((step_number + 2))
 
 	remove_worktree "$worktree_path" $((step_number + 3))

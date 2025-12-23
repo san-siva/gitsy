@@ -416,9 +416,8 @@ main() {
 	create_main_dir_if_necessary "$default_branch" $step_number
 	local needs_restructure=$?
 
-	local next_step=$((step_number + 1))
 	if [ $needs_restructure -eq 1 ]; then
-		next_step=$((step_number + 3))
+		checkout_or_create_branch $((step_number + 4))
 	else
 		# Notify user that worktree will be created
 		local sanitized_target=$(sanitize_branch_name "$target_branch")
@@ -428,15 +427,15 @@ main() {
 		print_message "" -1
 
 		# Prompt user for confirmation
-		local proceed=$(prompt_user false "Proceed with creating worktree?" "$next_step")
+		local proceed=$(prompt_user false "Proceed with creating worktree?" "$step_number")
 		if [ "$proceed" != "y" ]; then
 			print_message "" -1
 			print_message "${RED}Worktree creation cancelled by user.${NC}" -1
 			exit 1
 		fi
-	fi
 
-	checkout_or_create_branch $next_step
+		checkout_or_create_branch $((step_number + 1))
+	fi
 }
 
 main "$@"
