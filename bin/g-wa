@@ -159,6 +159,16 @@ checkout_or_create_branch() {
 
 	print_message "${RED}Branch not found on remote.${NC}"
 
+	# Get current branch and repo info for the "Will create" message
+	local current_branch=$(get_current_branch)
+	local repo_name=$(get_repo_name)
+	local sanitized_target=$(sanitize_branch_name "$target_branch")
+
+	print_message "" -1
+	print_message "${BLUE}Will create ${NC}${target_branch}${BLUE} worktree (cut from ${NC}${current_branch}${BLUE})${NC}" -1
+	print_message "Location: ${BLUE}${repo_name}/worktrees/${sanitized_target}${NC}" -1
+	print_message "" -1
+
 	create_new_branch=$(prompt_user true "Create new branch?" $((step_number + 2)))
 	if [ "${create_new_branch}" = "y" ]; then
 		print_message "${BLUE}Creating ${NC}${target_branch}${BLUE} worktree...${NC}" $((step_number + 3))
@@ -419,22 +429,7 @@ main() {
 	if [ $needs_restructure -eq 1 ]; then
 		checkout_or_create_branch $((step_number + 4))
 	else
-		# Notify user that worktree will be created
-		local sanitized_target=$(sanitize_branch_name "$target_branch")
-		print_message "" -1
-		print_message "${BLUE}Will create ${NC}${target_branch}${BLUE} worktree (cut from ${NC}${current_branch}${BLUE})${NC}" -1
-		print_message "Location: ${BLUE}${repo_name}/worktrees/${sanitized_target}${NC}" -1
-		print_message "" -1
-
-		# Prompt user for confirmation
-		local proceed=$(prompt_user false "Proceed with creating worktree?" "$step_number")
-		if [ "$proceed" != "y" ]; then
-			print_message "" -1
-			print_message "${RED}Worktree creation cancelled by user.${NC}" -1
-			exit 1
-		fi
-
-		checkout_or_create_branch $((step_number + 1))
+		checkout_or_create_branch $step_number
 	fi
 }
 
