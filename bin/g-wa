@@ -122,23 +122,23 @@ generate_worktree_path() {
 	if [ $? -ne 0 ]; then
 		return 1
 	fi
-	local path="${worktree_dir}${worktree_name}"
+	local result_path="${worktree_dir}${worktree_name}"
 
 	# Convert to absolute path
 	local abs_path
-	abs_path=$(cd "${path%/*}" 2>/dev/null && echo "$(pwd)/${path##*/}")
+	abs_path=$(cd "${result_path%/*}" 2>/dev/null && echo "$(pwd)/${result_path##*/}")
 	local abs_path_exit=$?
 	if [ $abs_path_exit -ne 0 ] || [ -z "$abs_path" ]; then
 		print_message "" -1
 		print_message "${RED}Failed to resolve absolute path. [Fail]${NC}" -1
 		return 1
 	fi
-	path="$abs_path"
+	result_path="$abs_path"
 
 	# If path exists, generate a unique path
-	if [ -d "$path" ]; then
-		print_message "${RED}Worktree path already exists. [Fail]${NC}"
-		local parent_dir="${path%/*}"
+	if [ -d "$result_path" ]; then
+		print_message "${PROMPT}Worktree path already exists.${NC}"
+		local parent_dir="${result_path%/*}"
 		local no_of_identical_dirs
 		no_of_identical_dirs=$(find "$parent_dir" -maxdepth 1 -type d -name "${worktree_name}*" 2>/dev/null | wc -l)
 		local find_exit=$?
@@ -147,11 +147,11 @@ generate_worktree_path() {
 			print_message "${RED}Failed to count existing directories. [Fail]${NC}" -1
 			return 1
 		fi
-		path="${parent_dir}/${worktree_name}_$(($no_of_identical_dirs + 1))"
-		print_message "${BLUE}Using new path: ${NC}${path}${NC}"
+		result_path="${parent_dir}/${worktree_name}_$(($no_of_identical_dirs + 1))"
+		print_message "${BLUE}Using new path: ${NC}${result_path}${NC}"
 
 		# Validate the new path
-		if [ -z "$path" ]; then
+		if [ -z "$result_path" ]; then
 			print_message "" -1
 			print_message "${RED}Failed to generate unique worktree path. [Fail]${NC}" -1
 			return 1
@@ -159,7 +159,7 @@ generate_worktree_path() {
 	fi
 
 	# Set the result via nameref
-	result_var="$path"
+	result_var="$result_path"
 	return 0
 }
 
