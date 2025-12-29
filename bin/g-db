@@ -70,7 +70,8 @@ delete_local_branch() {
 		return 0
 	fi
 
-	current_branch=$(get_current_branch)
+	local current_branch
+	get_current_branch current_branch
 	if [ "${branch}" = "${current_branch}" ]; then
 		print_message "" -1
 		print_message "${RED}Cannot delete the branch you are currently on.${NC}" -1

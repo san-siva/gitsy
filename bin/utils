@@ -116,56 +116,67 @@ prompt_user() {
 }
 
 get_current_branch() {
-	current_branch=$(git rev-parse --abbrev-ref HEAD)
-	if [ -z "$current_branch" ]; then
+	local -n result=$1
+	result=$(git rev-parse --abbrev-ref HEAD 2>&1)
+	local get_branch_exit=$?
+	if [ $get_branch_exit -ne 0 ] || [ -z "$result" ]; then
 		print_message "" -1
 		print_message "${RED}Failed to get current branch. [Fail]${NC}" -1
 		exit 1
 	fi
-	echo "${current_branch}"
+	return 0
 }
 
 get_default_branch() {
+	local -n result=$1
 	local default_branch=""
 
 	# Try to get from remote HEAD
 	default_branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+	local exit_code=$?
 
-	if [ -n "$default_branch" ]; then
-		echo "$default_branch"
+	if [ $exit_code -eq 0 ] && [ -n "$default_branch" ]; then
+		result="$default_branch"
 		return 0
 	fi
 
 	# Check if main exists locally
 	if git show-ref --verify --quiet "refs/heads/main"; then
-		echo "main"
+		result="main"
 		return 0
 	fi
 
 	# Check if master exists locally
 	if git show-ref --verify --quiet "refs/heads/master"; then
-		echo "master"
+		result="master"
 		return 0
 	fi
 
 	# Fallback to main
-	echo "main"
+	result="main"
 	return 0
 }
 
 sanitize_branch_name() {
 	local branch_name=$1
-	local max_length=${2:-30}  # Default max length is 30
+	local -n result=$2
+	local max_length=${3:-30}  # Default max length is 30
 
 	# Replace non-alphanumeric characters with underscores and convert to lowercase
-	local sanitized=$(echo "$branch_name" | sed -E 's/[^[:alnum:]]/_/g' | tr '[:upper:]' '[:lower:]')
+	local sanitized
+	sanitized=$(echo "$branch_name" | sed -E 's/[^[:alnum:]]/_/g' | tr '[:upper:]' '[:lower:]')
+	local sanitize_exit=$?
+	if [ $sanitize_exit -ne 0 ]; then
+		return 1
+	fi
 
 	# Truncate if longer than max_length
 	if [ ${#branch_name} -gt $max_length ]; then
 		sanitized="${sanitized:0:$max_length}.."
 	fi
 
-	echo "$sanitized"
+	result="$sanitized"
+	return 0
 }
 
 stash_changes() {
@@ -187,7 +198,13 @@ stash_changes() {
 		fi
 
 		local stash_message
-		local branch_name=$(git rev-parse --abbrev-ref HEAD)
+		local branch_name
+		branch_name=$(git rev-parse --abbrev-ref HEAD 2>&1)
+		if [ $? -ne 0 ] || [ -z "$branch_name" ]; then
+			print_message "" -1
+			print_message "${RED}Failed to get current branch name for stash. [Fail]${NC}" -1
+			exit 1
+		fi
 		local stash_date=$(date '+%Y-%m-%d %H:%M:%S')
 
 		if [ -n "$tag_message" ]; then
@@ -276,12 +293,8 @@ create_worktree() {
 		exit 1
 	fi
 
-	base_branch=$(get_current_branch)
-	if [ -z "$base_branch" ]; then
-		print_message "" -1
-		print_message "${RED}Failed to get current branch. [Fail]${NC}" -1
-		exit 1
-	fi
+	local base_branch
+	get_current_branch base_branch
 
 	if [ "$new_branch" = "true" ]; then
 		# Make sure the source branch exists remotely!
@@ -436,7 +449,8 @@ already_on_branch() {
 		step_number=1
 	fi
 	print_message "${BLUE}Checking current branch...${NC}" $step_number
-	current_branch=$(get_current_branch)
+	local current_branch
+	get_current_branch current_branch
 	if [ "${target_branch}" = "${current_branch}" ]; then
 		print_message "${GREEN}Already on branch ${NC}${target_branch}${GREEN}. [DONE]${NC}"
 		exit 1
@@ -586,14 +600,49 @@ copy_to_clipboard() {
 }
 
 get_repo_name() {
+	local -n result=$1
+
 	# Try to get repo name from git remote
-	local remote_url=$(git config --get remote.origin.url 2>/dev/null)
+	local remote_url
+	remote_url=$(git config --get remote.origin.url 2>/dev/null)
 	if [ -n "$remote_url" ]; then
 		# Extract repo name from URL (handles both https and ssh)
-		echo "$remote_url" | sed -E 's#.*/([^/]+)(\.git)?$#\1#' | sed 's/\.git$//'
+		result=$(echo "$remote_url" | sed -E 's#.*/([^/]+)(\.git)?$#\1#' | sed 's/\.git$//')
+		local extract_exit=$?
+		if [ $extract_exit -ne 0 ]; then
+			return 1
+		fi
 		return 0
 	fi
 
 	# Fallback to directory name
-	basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+	local toplevel
+	toplevel=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+	result="${toplevel##*/}"
+	return 0
+}
+
+get_repo_info() {
+	local -n git_root_ref=$1
+	local -n current_dir_ref=$2
+	local -n parent_dir_ref=$3
+	local -n repo_name_ref=$4
+
+	# Get git root
+	git_root_ref=$(git rev-parse --show-toplevel)
+	local git_root_exit=$?
+	if [ $git_root_exit -ne 0 ] || [ -z "$git_root_ref" ]; then
+		return 1
+	fi
+
+	# Get current directory name (basename of git root)
+	current_dir_ref="${git_root_ref##*/}"
+
+	# Get parent directory (dirname of git root, then basename of that)
+	local parent_path="${git_root_ref%/*}"
+	parent_dir_ref="${parent_path##*/}"
+
+	# Get repo name
+	get_repo_name repo_name_ref
+	return 0
 }

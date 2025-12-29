@@ -105,11 +105,16 @@ format_diff_output() {
 			current_file="${BASH_REMATCH[1]}"
 			echo "${BLUE}file:${NC} ${current_file}"
 
-			# Get stats for this file
-			local adds=$(git diff --numstat "origin/${target_branch}..${source_branch}" -- "$current_file" | awk '{print $1}')
-			local dels=$(git diff --numstat "origin/${target_branch}..${source_branch}" -- "$current_file" | awk '{print $2}')
-			if [ -n "$adds" ] && [ -n "$dels" ]; then
-				echo "${BLUE}stats:${NC} ${GREEN}+${adds}${NC} ${RED}-${dels}${NC}"
+				# Get stats for this file
+			local adds dels numstat_output
+			numstat_output=$(git diff --numstat "origin/${target_branch}..${source_branch}" -- "$current_file" 2>&1)
+			local numstat_exit=$?
+			if [ $numstat_exit -eq 0 ]; then
+				adds=$(echo "$numstat_output" | awk '{print $1}')
+				dels=$(echo "$numstat_output" | awk '{print $2}')
+				if [ -n "$adds" ] && [ -n "$dels" ]; then
+					echo "${BLUE}stats:${NC} ${GREEN}+${adds}${NC} ${RED}-${dels}${NC}"
+				fi
 			fi
 			echo "${BLUE}changes:${NC}"
 			echo ""
@@ -149,12 +154,22 @@ has_changes() {
 show_full_diff() {
 	if has_changes; then
 		# Capture and display formatted output
-		local formatted_output=$(format_diff_output)
+		local formatted_output
+		formatted_output=$(format_diff_output)
+		local format_exit=$?
+		if [ $format_exit -ne 0 ]; then
+			print_message "" -1
+			print_message "${RED}Failed to format diff output. [Fail]${NC}" -1
+			return 1
+		fi
 		echo "$formatted_output" | indent
 
 		# Copy formatted output to clipboard (strip color codes)
-		local clipboard_content=$(sed $'s/\033\[[0-9;]*m//g' <<< "${formatted_output}")
-		copy_to_clipboard "$clipboard_content" "Formatted diff copied to clipboard."
+		local clipboard_content
+		clipboard_content=$(sed $'s/\033\[[0-9;]*m//g' <<< "${formatted_output}")
+		if [ $? -eq 0 ]; then
+			copy_to_clipboard "$clipboard_content" "Formatted diff copied to clipboard."
+		fi
 	else
 		print_message "${BLUE}No changes found between ${NC}${source_branch}${BLUE} and ${NC}${target_branch}${BLUE}.${NC}"
 	fi
@@ -190,7 +205,12 @@ show_stat_summary() {
 		echo "$result" | indent
 
 		# Copy stats to clipboard (strip color codes)
-		local stats_content=$(git diff --stat "origin/${target_branch}..${source_branch}")
+		local stats_content
+		if ! stats_content=$(git diff --stat "origin/${target_branch}..${source_branch}" 2>&1); then
+			print_message "" -1
+			print_message "${RED}Failed to generate stats for clipboard. [Fail]${NC}" -1
+			return 1
+		fi
 		copy_to_clipboard "$stats_content" "Stats copied to clipboard."
 	else
 		print_message "${BLUE}No changes found between ${NC}${source_branch}${BLUE} and ${NC}${target_branch}${BLUE}.${NC}"
@@ -202,12 +222,7 @@ compare_branches() {
 
 	if [ -z "$source_branch" ]; then
 		print_message "${BLUE}Source branch not specified, using current branch...${NC}" $step_number
-		source_branch=$(get_current_branch true)
-		if [ -z "$source_branch" ]; then
-			print_message "" -1
-			print_message "${RED}Failed to get current branch.${NC}" -1
-			exit 1
-		fi
+		get_current_branch source_branch
 		step_number=$((step_number + 1))
 	fi
 

@@ -44,7 +44,8 @@ main() {
 	print_banner
 	print_message "${BLUE}Fetching git status...${NC}" 1
 
-	current_branch=$(get_current_branch)
+	local current_branch
+	get_current_branch current_branch
 
 	if ! git -c color.ui=always status 2>&1 | indent; then
 		print_message "${PROMPT}Failed to get git status. Are you in a git repository?${NC}"

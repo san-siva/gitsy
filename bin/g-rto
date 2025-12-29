@@ -43,7 +43,7 @@ main() {
 	set_flags "$@"
 	validate_dependencies git figlet lolcat
 	print_banner
-	target_branch=$(get_current_branch)
+	get_current_branch target_branch
 	stash_changes true 1
 	print_message ""
 

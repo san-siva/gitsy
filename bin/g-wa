@@ -66,8 +66,7 @@ set_flags() {
 }
 
 try_fetching_branch() {
-	fetch_success=$(fetch_changes "${target_branch}")
-	if [ "${fetch_success}" = "false" ]; then
+	if ! fetch_changes "${target_branch}"; then
 		print_message "" -1
 		print_message "${RED}Failed to fetch changes for branch ${target_branch}. [Fail]${NC}" -1
 		exit 1
@@ -81,7 +80,13 @@ check_branch_in_worktree() {
 	print_message "${BLUE}Checking if ${NC}${branch}${BLUE} branch exists...${NC}" $step_number
 
 	# Check if branch is already checked out in another worktree
-	local existing_worktree=$(git worktree list | grep "\[${branch}\]" | awk '{print $1}')
+	local existing_worktree
+	existing_worktree=$(git worktree list 2>/dev/null | grep -F "[${branch}]" | awk '{print $1}')
+	if [ $? -ne 0 ]; then
+		print_message "" -1
+		print_message "${RED}Failed to check worktree list. [Fail]${NC}" -1
+		exit 1
+	fi
 	if [ -n "$existing_worktree" ]; then
 		print_message "${RED}Branch ${NC}${branch}${RED} is already checked out in worktree:${NC}"
 		print_message "${GREEN}${existing_worktree}${NC}"
@@ -92,6 +97,7 @@ check_branch_in_worktree() {
 
 generate_worktree_path() {
 	local target_branch=$1
+	local -n result_var=$2
 
 	# Determine worktree directory based on current location
 	local worktree_dir
@@ -111,22 +117,50 @@ generate_worktree_path() {
 	fi
 
 	# Sanitize branch name for worktree directory
-	local worktree_name=$(sanitize_branch_name "$target_branch")
+	local worktree_name
+	sanitize_branch_name "$target_branch" worktree_name
+	if [ $? -ne 0 ]; then
+		return 1
+	fi
 	local path="${worktree_dir}${worktree_name}"
 
 	# Convert to absolute path
-	path=$(cd "$(dirname "$path")" 2>/dev/null && echo "$(pwd)/$(basename "$path")")
+	local abs_path
+	abs_path=$(cd "${path%/*}" 2>/dev/null && echo "$(pwd)/${path##*/}")
+	local abs_path_exit=$?
+	if [ $abs_path_exit -ne 0 ] || [ -z "$abs_path" ]; then
+		print_message "" -1
+		print_message "${RED}Failed to resolve absolute path. [Fail]${NC}" -1
+		return 1
+	fi
+	path="$abs_path"
 
 	# If path exists, generate a unique path
 	if [ -d "$path" ]; then
 		print_message "${RED}Worktree path already exists. [Fail]${NC}"
-		no_of_identical_dirs=$(find "$(dirname "$path")" -maxdepth 1 -type d -name "${worktree_name}*" 2>/dev/null | wc -l)
-		path="$(dirname "$path")/${worktree_name}_$(($no_of_identical_dirs + 1))"
+		local parent_dir="${path%/*}"
+		local no_of_identical_dirs
+		no_of_identical_dirs=$(find "$parent_dir" -maxdepth 1 -type d -name "${worktree_name}*" 2>/dev/null | wc -l)
+		local find_exit=$?
+		if [ $find_exit -ne 0 ]; then
+			print_message "" -1
+			print_message "${RED}Failed to count existing directories. [Fail]${NC}" -1
+			return 1
+		fi
+		path="${parent_dir}/${worktree_name}_$(($no_of_identical_dirs + 1))"
 		print_message "${BLUE}Using new path: ${NC}${path}${NC}"
+
+		# Validate the new path
+		if [ -z "$path" ]; then
+			print_message "" -1
+			print_message "${RED}Failed to generate unique worktree path. [Fail]${NC}" -1
+			return 1
+		fi
 	fi
 
-	# Return the generated path
-	echo "$path"
+	# Set the result via nameref
+	result_var="$path"
+	return 0
 }
 
 checkout_or_create_branch() {
@@ -136,7 +170,13 @@ checkout_or_create_branch() {
 	check_branch_in_worktree "${target_branch}" $step_number
 
 	# Generate worktree path
-	local path=$(generate_worktree_path "${target_branch}" $step_number)
+	local path
+	generate_worktree_path "${target_branch}" path
+	if [ $? -ne 0 ]; then
+		print_message "" -1
+		print_message "${RED}Failed to generate worktree path. [Fail]${NC}" -1
+		exit 1
+	fi
 
 	# Check if branch exists locally
 	if git show-ref --verify --quiet "refs/heads/${target_branch}"; then
@@ -160,9 +200,15 @@ checkout_or_create_branch() {
 	print_message "${RED}Branch not found on remote.${NC}"
 
 	# Get current branch and repo info for the "Will create" message
-	local current_branch=$(get_current_branch)
-	local repo_name=$(get_repo_name)
-	local sanitized_target=$(sanitize_branch_name "$target_branch")
+	local current_branch repo_name sanitized_target
+	get_current_branch current_branch
+	get_repo_name repo_name
+	sanitize_branch_name "$target_branch" sanitized_target
+	if [ $? -ne 0 ]; then
+		print_message "" -1
+		print_message "${RED}Failed to sanitize branch name. [Fail]${NC}" -1
+		exit 1
+	fi
 
 	print_message "" -1
 	print_message "${BLUE}Will create ${NC}${target_branch}${BLUE} worktree (cut from ${NC}${current_branch}${BLUE})${NC}" -1
@@ -189,49 +235,46 @@ prompt_restructure_confirmation() {
 	local target_branch=$5
 
 	# Save the current branch before restructuring
-	local original_branch=$(get_current_branch)
-	if [ -z "$original_branch" ]; then
-		print_message "" -1
-		print_message "${RED}Failed to get current branch. [Fail]${NC}" -1
-		exit 1
-	fi
-	print_message "${step_number}. ${BLUE}Repository Reorganization Required${NC}" -1 >&2
-	print_message "Your repository will be moved into a 'main' subdirectory to enable worktree support" 0 >&2
-	print_message "" 0 >&2
-	print_message "Current location: ${BLUE}${git_root}${NC}" 0 >&2
-	print_message "New location:     ${BLUE}${git_root}/main${NC}" 0 >&2
-	print_message "Current branch:   ${BLUE}${original_branch}${NC}" 0 >&2
-	print_message "" 0 >&2
-	print_message "This structure allows you to work on multiple branches simultaneously" 0 >&2
-	print_message "by creating worktrees in separate directories" 0 >&2
+	local original_branch
+	get_current_branch original_branch
+	print_message "${step_number}. ${BLUE}Repository Reorganization Required${NC}" -1
+	print_message "Your repository will be moved into a 'main' subdirectory to enable worktree support" 0
+	print_message "" 0
+	print_message "Current location: ${BLUE}${git_root}${NC}" 0
+	print_message "New location:     ${BLUE}${git_root}/main${NC}" 0
+	print_message "Current branch:   ${BLUE}${original_branch}${NC}" 0
+	print_message "" 0
+	print_message "This structure allows you to work on multiple branches simultaneously" 0
+	print_message "by creating worktrees in separate directories" 0
 
 	# If not on default branch, mention worktree will be created
 	if [ "$original_branch" != "$default_branch" ]; then
-		local sanitized_original=$(sanitize_branch_name "$original_branch")
-		local sanitized_target=$(sanitize_branch_name "$target_branch")
-		print_message "" 0 >&2
-		print_message "Note: You're currently on ${BLUE}${original_branch}${NC} (not ${BLUE}${default_branch}${NC})" 0 >&2
+		local sanitized_original sanitized_target
+		sanitize_branch_name "$original_branch" sanitized_original
+		sanitize_branch_name "$target_branch" sanitized_target
+		print_message "" 0
+		print_message "Note: You're currently on ${BLUE}${original_branch}${NC} (not ${BLUE}${default_branch}${NC})" 0
 
 		# Check if target branch is the same as original branch
 		if [ "$target_branch" = "$original_branch" ]; then
-			print_message "Two directories will be created:" 0 >&2
-			print_message "" 0 >&2
-			print_message "• ${BLUE}${repo_name}/main${NC} → ${BLUE}${default_branch}${NC} branch" 0 >&2
-			print_message "• ${BLUE}${repo_name}/worktrees/${sanitized_original}${NC} → ${BLUE}${original_branch}${NC} branch" 0 >&2
+			print_message "Two directories will be created:" 0
+			print_message "" 0
+			print_message "• ${BLUE}${repo_name}/main${NC} → ${BLUE}${default_branch}${NC} branch" 0
+			print_message "• ${BLUE}${repo_name}/worktrees/${sanitized_original}${NC} → ${BLUE}${original_branch}${NC} branch" 0
 		else
-			print_message "Three directories will be created:" 0 >&2
-			print_message "" 0 >&2
-			print_message "• ${BLUE}${repo_name}/main${NC} → ${BLUE}${default_branch}${NC} branch" 0 >&2
-			print_message "• ${BLUE}${repo_name}/worktrees/${sanitized_original}${NC} → ${BLUE}${original_branch}${NC} branch" 0 >&2
-			print_message "• ${BLUE}${repo_name}/worktrees/${sanitized_target}${NC} → ${BLUE}${target_branch}${NC} branch (cut from ${BLUE}${original_branch}${NC})" 0 >&2
+			print_message "Three directories will be created:" 0
+			print_message "" 0
+			print_message "• ${BLUE}${repo_name}/main${NC} → ${BLUE}${default_branch}${NC} branch" 0
+			print_message "• ${BLUE}${repo_name}/worktrees/${sanitized_original}${NC} → ${BLUE}${original_branch}${NC} branch" 0
+			print_message "• ${BLUE}${repo_name}/worktrees/${sanitized_target}${NC} → ${BLUE}${target_branch}${NC} branch (cut from ${BLUE}${original_branch}${NC})" 0
 		fi
 	fi
 
 	# Prompt user for confirmation
 	local proceed=$(prompt_user false "Proceed with restructuring?" "$step_number")
 	if [ "$proceed" != "y" ]; then
-		print_message "" -1 >&2
-		print_message "${RED}Restructuring cancelled by user.${NC}" -1 >&2
+		print_message "" -1
+		print_message "${RED}Restructuring cancelled by user.${NC}" -1
 		exit 1
 	fi
 }
@@ -240,18 +283,19 @@ create_main_dir() {
 	local git_root=$1
 	local temp_dir=$2
 	local step_number=$3
+	local -n result_var=$4
 
 	# Create temp directory and move everything there
 	if ! mkdir -p "$temp_dir"; then
-		print_message "" -1 >&2
-		print_message "${RED}Failed to create temporary directory. [Fail]${NC}" -1 >&2
+		print_message "" -1
+		print_message "${RED}Failed to create temporary directory. [Fail]${NC}" -1
 		exit 1
 	fi
 
-	print_message "${BLUE}Moving repository contents to temporary location...${NC}" $step_number >&2
+	print_message "${BLUE}Moving repository contents to temporary location...${NC}" $step_number
 	if ! (shopt -s dotglob && mv "$git_root"/* "$temp_dir/" 2>&1); then
-		print_message "" -1 >&2
-		print_message "${RED}Failed to move contents to temporary directory. [Fail]${NC}" -1 >&2
+		print_message "" -1
+		print_message "${RED}Failed to move contents to temporary directory. [Fail]${NC}" -1
 		rm -rf "$temp_dir"
 		exit 1
 	fi
@@ -259,8 +303,8 @@ create_main_dir() {
 	# Create main directory
 	local main_dir="${git_root}/main"
 	if ! mkdir -p "$main_dir"; then
-		print_message "" -1 >&2
-		print_message "${RED}Failed to create main directory. [Fail]${NC}" -1 >&2
+		print_message "" -1
+		print_message "${RED}Failed to create main directory. [Fail]${NC}" -1
 		# Restore from temp
 		(shopt -s dotglob && mv "$temp_dir"/* "$git_root/")
 		rm -rf "$temp_dir"
@@ -269,15 +313,16 @@ create_main_dir() {
 
 	# Move everything from temp to main
 	if ! (shopt -s dotglob && mv "$temp_dir"/* "$main_dir/" 2>&1); then
-		print_message "" -1 >&2
-		print_message "${RED}Failed to move contents to main directory. [Fail]${NC}" -1 >&2
+		print_message "" -1
+		print_message "${RED}Failed to move contents to main directory. [Fail]${NC}" -1
 		exit 1
 	fi
 
 	# Clean up temp directory
 	rm -rf "$temp_dir"
 
-	echo "$main_dir"
+	result_var="$main_dir"
+	return 0
 }
 
 checkout_main_in_main_branch() {
@@ -316,7 +361,13 @@ checkout_current_branch() {
 		return 0
 	fi
 
-	local path=$(generate_worktree_path "$original_branch" $step_number)
+	local path
+	generate_worktree_path "$original_branch" path
+	if [ $? -ne 0 ]; then
+		print_message "" -1
+		print_message "${RED}Failed to generate worktree path. [Fail]${NC}" -1
+		exit 1
+	fi
 	print_message "${BLUE}Creating ${NC}${original_branch}${BLUE} worktree...${NC}" $step_number
 	create_worktree "$original_branch" "$path"
 
@@ -349,27 +400,31 @@ create_main_dir_if_necessary() {
 		step_number=0
 	fi
 
-	local git_root=$(git rev-parse --show-toplevel)
-	local current_dir=$(basename "$git_root")
-	local parent_dir=$(basename "$(dirname "$git_root")")
-	local repo_name=$(get_repo_name)
+	local git_root current_dir parent_dir repo_name
+	if ! get_repo_info git_root current_dir parent_dir repo_name; then
+		print_message "" -1
+		print_message "${RED}Failed to get repository information. [Fail]${NC}" -1
+		exit 1
+	fi
 
 	if already_restructured; then
 		return 0
 	fi
 
 	# Save original branch before restructuring
-	local original_branch=$(get_current_branch)
+	local original_branch
+	get_current_branch original_branch
 
 	# Prompt user for restructuring
 	prompt_restructure_confirmation "$git_root" "$repo_name" "$default_branch" "$step_number" "$target_branch"
 
 	# Get parent directory path
-	local parent_path=$(dirname "$git_root")
+	local parent_path="${git_root%/*}"
 	local temp_dir="${parent_path}/.temp-${repo_name}-$$"
 
 	# Create main directory and restructure
-	local main_dir=$(create_main_dir "$git_root" "$temp_dir" $((step_number + 1)))
+	local main_dir
+	create_main_dir "$git_root" "$temp_dir" $((step_number + 1)) main_dir
 
 	# Navigate to main directory using direct path
 	if ! navigate_to_dir "$main_dir"; then
@@ -410,8 +465,9 @@ main() {
 		exit 1
 	fi
 
-	local default_branch=$(get_default_branch)
-	local current_branch=$(get_current_branch)
+	local default_branch current_branch
+	get_default_branch default_branch
+	get_current_branch current_branch
 
 	local step_number=2
 	if [ "$stash" = true ]; then
@@ -419,10 +475,12 @@ main() {
 	fi
 
 	# Check if we need to restructure (to calculate proper step numbers)
-	local git_root=$(git rev-parse --show-toplevel)
-	local current_dir=$(basename "$git_root")
-	local parent_dir=$(basename "$(dirname "$git_root")")
-	local repo_name=$(get_repo_name)
+	local git_root current_dir parent_dir repo_name
+	if ! get_repo_info git_root current_dir parent_dir repo_name; then
+		print_message "" -1
+		print_message "${RED}Failed to get repository information. [Fail]${NC}" -1
+		exit 1
+	fi
 	create_main_dir_if_necessary "$default_branch" $step_number
 	local needs_restructure=$?
 

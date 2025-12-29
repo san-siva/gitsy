@@ -88,15 +88,21 @@ set_flags() {
 
 cd_to_worktrees_dir() {
 	# Get git root and navigate to repo root's worktrees directory
-	local git_root=$(git rev-parse --show-toplevel)
+	local git_root
+	git_root=$(git rev-parse --show-toplevel 2>&1)
+	if [ $? -ne 0 ] || [ -z "$git_root" ]; then
+		print_message "" -1
+		print_message "${RED}Failed to get git root directory. [Fail]${NC}" -1
+		exit 1
+	fi
 	local git_root_parent=$(dirname "$git_root")
 	local git_root_parent_name=$(basename "$git_root_parent")
 
 	# If we're in a worktree (parent is "worktrees"), use that directory
 	if [ "$git_root_parent_name" = "worktrees" ]; then
 		if ! navigate_to_dir "$git_root_parent"; then
-			print_message "" -1 >&2
-			print_message "${RED}Failed to navigate to worktrees directory. [Fail]${NC}" -1 >&2
+			print_message "" -1
+			print_message "${RED}Failed to navigate to worktrees directory. [Fail]${NC}" -1
 			exit 1
 		fi
 		return 0
@@ -105,14 +111,14 @@ cd_to_worktrees_dir() {
 	# Otherwise, we're in main, so look for ../worktrees
 	local worktrees_dir="$git_root_parent/worktrees"
 	if [ ! -d "$worktrees_dir" ]; then
-		print_message "" -1 >&2
-		print_message "${RED}Worktrees directory not found at ${NC}${worktrees_dir}${RED}. [Fail]${NC}" -1 >&2
+		print_message "" -1
+		print_message "${RED}Worktrees directory not found at ${NC}${worktrees_dir}${RED}. [Fail]${NC}" -1
 		exit 1
 	fi
 
 	if ! navigate_to_dir "$worktrees_dir"; then
-		print_message "" -1 >&2
-		print_message "${RED}Failed to navigate to worktrees directory. [Fail]${NC}" -1 >&2
+		print_message "" -1
+		print_message "${RED}Failed to navigate to worktrees directory. [Fail]${NC}" -1
 		exit 1
 	fi
 }
@@ -155,8 +161,10 @@ find_worktree_by_branch() {
 			continue
 		fi
 
-		local branch=$(get_current_branch 2>/dev/null)
-		if [ -z "$branch" ]; then
+		local branch
+		branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+		local branch_exit=$?
+		if [ $branch_exit -ne 0 ] || [ -z "$branch" ]; then
 			continue
 		fi
 
@@ -247,8 +255,9 @@ main() {
 		print_message "${BLUE}Searching for worktree with branch ${NC}${target_branch}${BLUE}...${NC}" $step_number
 	fi
 
+	local worktree_path
 	worktree_path=$(find_dir_to_remove)
-	if [ -z "$worktree_path" ]; then
+	if [ $? -ne 0 ] || [ -z "$worktree_path" ]; then
 		print_message "" -1
 		if [ -n "$worktree_name" ]; then
 			print_message "${RED}No worktree found with name ${NC}${worktree_name}${RED}. [Fail]${NC}" -1
