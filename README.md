@@ -198,6 +198,54 @@ Contributions are welcome! Here's how to contribute:
 
 8. **Create a Pull Request** on GitHub
 
+### Running Tests
+
+gitsy includes a comprehensive test suite with 145 tests covering all utility functions and commands.
+
+**Install test dependencies:**
+```bash
+brew install bats-core
+```
+
+**Run all tests:**
+```bash
+./tests/run-tests.sh
+```
+
+**Run specific test files:**
+```bash
+# Test a specific utility function
+bats tests/utils/sanitize_branch_name.bats
+
+# Test a specific command
+bats tests/g-wa/*.bats
+
+# Test a specific function within a command
+bats tests/g-wa/generate_worktree_path.bats
+```
+
+**Test structure:**
+```
+tests/
+├── utils/              # Utility function tests (8 files, 61 tests)
+│   ├── get_current_branch.bats
+│   ├── get_default_branch.bats
+│   ├── sanitize_branch_name.bats
+│   └── ...
+└── g-*/               # Command tests (24 files, 84 tests)
+    ├── g-wa/          # Worktree add tests
+    ├── g-wr/          # Worktree remove tests
+    ├── g-db/          # Delete branch tests
+    └── ...
+```
+
+**Test coverage:**
+- ✅ 100% of utility functions tested
+- ✅ 100% of command workflows tested
+- ✅ All critical bug scenarios covered
+- ✅ Nameref collision protection verified
+- ✅ Exit code handling validated
+
 ### Reporting Issues
 
 Found a bug or have a feature request? Please [open an issue](https://github.com/san-siva/gitsy/issues) with:
