@@ -129,14 +129,14 @@ get_current_branch() {
 
 get_default_branch() {
 	local -n result=$1
-	local default_branch=""
+	local branch_result=""
 
 	# Try to get from remote HEAD
-	default_branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+	branch_result=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
 	local exit_code=$?
 
-	if [ $exit_code -eq 0 ] && [ -n "$default_branch" ]; then
-		result="$default_branch"
+	if [ $exit_code -eq 0 ] && [ -n "$branch_result" ]; then
+		result="$branch_result"
 		return 0
 	fi
 
@@ -604,7 +604,7 @@ get_repo_name() {
 
 	# Try to get repo name from git remote
 	local remote_url
-	remote_url=$(git config --get remote.origin.url 2>/dev/null)
+	remote_url=$(git config --get remote.origin.url 2>/dev/null || true)
 	if [ -n "$remote_url" ]; then
 		# Extract repo name from URL (handles both https and ssh)
 		result=$(echo "$remote_url" | sed -E 's#.*/([^/]+)(\.git)?$#\1#' | sed 's/\.git$//')
@@ -642,7 +642,9 @@ get_repo_info() {
 	local parent_path="${git_root_ref%/*}"
 	parent_dir_ref="${parent_path##*/}"
 
-	# Get repo name
-	get_repo_name repo_name_ref
+	# Get repo name using a local variable to avoid nameref-to-nameref issues
+	local temp_repo_name
+	get_repo_name temp_repo_name
+	repo_name_ref="$temp_repo_name"
 	return 0
 }

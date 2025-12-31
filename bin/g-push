@@ -73,5 +73,9 @@ main() {
 	push_changes "$target_branch" $should_force_push 1
 }
 
-main "$@"
-exit 0
+
+# Only run main if script is executed directly (not sourced)
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+	main "$@"
+	exit 0
+fi
