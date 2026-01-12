@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+
+# Author: Santhosh Siva
+# Date Created: 01-12-2026
+
+# Description:
+# This script lists all git worktrees along with their branch names.
+
+# Resolve script directory (works with symlinks for npm global install)
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+	DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+	SOURCE="$(readlink "$SOURCE")"
+	[[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+source "$SCRIPT_DIR/utils"
+
+set_flags() {
+	while [ $# -gt 0 ]; do
+		case "$1" in
+		-h | --help)
+			echo "g-wl - list all git worktrees with their branches"
+			echo " "
+			echo "g-wl [options]"
+			echo " "
+			echo "options:"
+			echo "-h, --help          show brief help"
+			exit 0
+			;;
+		*)
+			echo ""
+			echo "${RED}Unknown option:${NC} $1"
+			exit 1
+			;;
+		esac
+		shift
+	done
+}
+
+list_worktrees() {
+	print_message "${BLUE}Fetching worktrees...${NC}" 1
+
+	# Get worktree list in porcelain format for easier parsing
+	local worktree_output
+	worktree_output=$(git worktree list --porcelain 2>&1)
+	local exit_code=$?
+
+	if [ $exit_code -ne 0 ]; then
+		print_message "" -1
+		print_message "${RED}Failed to get worktree list.${NC}" -1
+		echo "$worktree_output" | indent
+		exit 1
+	fi
+
+	if [ -z "$worktree_output" ]; then
+		print_message "" -1
+		print_message "${RED}No worktrees found.${NC}" -1
+		exit 1
+	fi
+
+	# First pass: collect all worktrees and find max directory name length
+	local -a dir_names=()
+	local -a branch_names=()
+	local worktree_path=""
+	local branch_name=""
+	local max_length=0
+
+	while IFS= read -r line; do
+		if [[ $line == worktree* ]]; then
+			# If we already have a worktree_path, save it
+			if [ -n "$worktree_path" ]; then
+				local dir_name=$(basename "$worktree_path")
+				dir_names+=("$dir_name")
+				branch_names+=("$branch_name")
+
+				# Update max length
+				local dir_length=${#dir_name}
+				if [ $dir_length -gt $max_length ]; then
+					max_length=$dir_length
+				fi
+			fi
+			# Extract new worktree path
+			worktree_path="${line#worktree }"
+			branch_name=""
+		elif [[ $line == branch* ]]; then
+			# Extract branch name
+			branch_name="${line#branch }"
+			# Remove refs/heads/ prefix if present
+			branch_name="${branch_name#refs/heads/}"
+		fi
+	done <<<"$worktree_output"
+
+	# Save the last entry
+	if [ -n "$worktree_path" ]; then
+		local dir_name=$(basename "$worktree_path")
+		dir_names+=("$dir_name")
+		branch_names+=("$branch_name")
+
+		# Update max length
+		local dir_length=${#dir_name}
+		if [ $dir_length -gt $max_length ]; then
+			max_length=$dir_length
+		fi
+	fi
+
+	# Second pass: print all worktrees with proper alignment
+	print_message "" -1
+	print_message "${GREEN}Worktrees:${NC}" -1
+	print_message "" -1
+
+	# Calculate max branch name length for table formatting
+	local max_branch_length=15 # Minimum width
+	local worktree_count=${#dir_names[@]}
+	for ((i = 0; i < worktree_count; i++)); do
+		local branch_length=${#branch_names[$i]}
+		if [ $branch_length -gt $max_branch_length ]; then
+			max_branch_length=$branch_length
+		fi
+	done
+
+	# Ensure "Branch Name" header fits
+	if [ $max_branch_length -lt 11 ]; then
+		max_branch_length=11
+	fi
+
+	# Print table top border
+	printf "┌─"
+	printf '%*s' "$max_length" | tr ' ' '─'
+	printf "─┬─"
+	printf '%*s' "$max_branch_length" | tr ' ' '─'
+	printf "─┐\n"
+
+	# Print header
+	printf "│ ${PROMPT}%-${max_length}s${NC} │ ${PROMPT}%-${max_branch_length}s${NC} │\n" "Directory Name" "Branch Name"
+
+	# Print header separator
+	printf "├─"
+	printf '%*s' "$max_length" | tr ' ' '─'
+	printf "─┼─"
+	printf '%*s' "$max_branch_length" | tr ' ' '─'
+	printf "─┤\n"
+
+	# Print table rows
+	for ((i = 0; i < worktree_count; i++)); do
+		local dir_name="${dir_names[$i]}"
+		local branch_name="${branch_names[$i]}"
+
+		if [ -n "$branch_name" ]; then
+			printf "│ ${BLUE}%-${max_length}s${NC} │ ${GREEN}%-${max_branch_length}s${NC} │\n" "$dir_name" "$branch_name"
+		else
+			printf "│ ${BLUE}%-${max_length}s${NC} │ ${PROMPT}%-${max_branch_length}s${NC} │\n" "$dir_name" "(detached HEAD)"
+		fi
+	done
+
+	# Print table bottom border
+	printf "└─"
+	printf '%*s' "$max_length" | tr ' ' '─'
+	printf "─┴─"
+	printf '%*s' "$max_branch_length" | tr ' ' '─'
+	printf "─┘\n"
+
+	print_message "" -1
+	print_message "${GREEN}Total worktrees: ${NC}${worktree_count}" -1
+}
+
+main() {
+	set_flags "$@"
+	validate_dependencies git
+	print_banner
+	list_worktrees
+}
+
+# Only run main if script is executed directly (not sourced)
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+	main "$@"
+	exit 0
+fi

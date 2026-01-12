@@ -157,12 +157,10 @@ find_worktree_by_branch() {
 		fi
 
 		local worktree_path="$worktrees_dir/$dir"
-		if ! navigate_to_dir "$worktree_path"; then
-			continue
-		fi
 
+		# Use subshell to check branch without changing parent directory
 		local branch
-		branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+		branch=$(cd "$worktree_path" 2>/dev/null && git rev-parse --abbrev-ref HEAD 2>/dev/null)
 		local branch_exit=$?
 		if [ $branch_exit -ne 0 ] || [ -z "$branch" ]; then
 			continue

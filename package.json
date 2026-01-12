@@ -29,6 +29,7 @@
     "g-pull": "./bin/g-pull",
     "g-push": "./bin/g-push",
     "g-wa": "./bin/g-wa",
+    "g-wl": "./bin/g-wl",
     "g-wr": "./bin/g-wr",
     "g-db": "./bin/g-db",
     "g-dlc": "./bin/g-dlc",
