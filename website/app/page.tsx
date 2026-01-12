@@ -59,7 +59,7 @@ export default function Home() {
 						[
 							<code>g-wa</code>,
 							'Create git worktree',
-							<code>--target-branch, --stash-changes</code>,
+							<code>--target-branch, --worktree-name, --stash-changes</code>,
 						],
 						[
 							<code>g-wr</code>,
@@ -350,7 +350,8 @@ export default function Home() {
 							<ul>
 								<li>Check if worktree already exists for the branch</li>
 								<li>
-									Sanitize branch name (lowercase, replace special chars with{' '}
+									Use custom directory name if <code>--worktree-name</code> is specified,
+									otherwise sanitize branch name (lowercase, replace special chars with{' '}
 									<code>_</code>)
 								</li>
 								<li>
@@ -377,6 +378,9 @@ export default function Home() {
 								<li>Prevents duplicate worktrees</li>
 								<li>
 									Optional stashing with <code>--stash-changes</code> flag
+								</li>
+								<li>
+									Custom directory naming with <code>--worktree-name</code> flag
 								</li>
 								<li>Requires confirmation before restructuring or creating worktrees</li>
 								<li>Clear error messages with actionable guidance</li>

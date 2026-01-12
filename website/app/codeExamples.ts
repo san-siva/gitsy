@@ -35,6 +35,7 @@ g-wa [options]
 options:
 -h, --help                                                             show brief help
 --target-branch BRANCH, --target-branch=BRANCH, -t=BRANCH, -t BRANCH   specify the target branch
+--worktree-name NAME, --worktree-name=NAME                             specify custom worktree directory name
 --stash-changes                                                        stash changes before proceeding`,
 
 	worktreeRemove: `g-wr - remove a git worktree for a specified branch or name
@@ -141,6 +142,9 @@ g-push --force`,
 	worktree: `# Create worktree for branch (creates ../worktrees/feature_new_feature)
 # If you're on develop, the new branch will be cut from develop
 g-wa -t feature/new-feature
+
+# With custom directory name (creates ../worktrees/my-custom-name)
+g-wa -t feature/new-feature --worktree-name my-custom-name
 
 # With stash (creates ../worktrees/develop)
 g-wa -t develop --stash-changes`,

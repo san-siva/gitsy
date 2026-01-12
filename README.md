@@ -99,6 +99,9 @@ g-co -t feature-branch
 **Create a new worktree:**
 ```bash
 g-wa -t new-feature
+
+# Or with a custom directory name
+g-wa -t new-feature --worktree-name my-custom-dir
 ```
 
 ### Understanding g-wa: Worktree Management
@@ -127,6 +130,7 @@ your-repo/
 - If you're on `develop` and create a new branch, it will be cut from `develop`
 - During restructuring, automatically creates worktrees for both the original branch and target branch
 - Automatically sanitizes branch names for directory creation
+- Supports custom worktree directory names with `--worktree-name` option
 - Converts paths to absolute paths for clarity
 - Checks for existing worktrees to prevent duplicates
 - Prompts to create new branches if they don't exist

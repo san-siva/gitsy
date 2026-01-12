@@ -20,6 +20,7 @@ source "$SCRIPT_DIR/utils"
 # Default Values
 stash=false
 target_branch=
+custom_worktree_name=
 
 set_flags() {
 	while [ $# -gt 0 ]; do
@@ -32,6 +33,7 @@ set_flags() {
 			echo "options:"
 			echo "-h, --help                                                             show brief help"
 			echo "--target-branch BRANCH, --target-branch=BRANCH, -t=BRANCH, -t BRANCH   specify the target branch"
+			echo "--worktree-name NAME, --worktree-name=NAME                             specify custom worktree directory name"
 			echo "--stash-changes                                                        stash changes before proceeding"
 			exit 0
 			;;
@@ -50,6 +52,24 @@ set_flags() {
 			else
 				echo ""
 				echo "${RED}Error: No target branch specified.$NC"
+				exit 1
+			fi
+			;;
+		--worktree-name=*)
+			custom_worktree_name="${1#*=}"
+			if [ -z "$custom_worktree_name" ]; then
+				echo ""
+				echo "${RED}Error: No worktree name specified.$NC"
+				exit 1
+			fi
+			;;
+		--worktree-name)
+			shift
+			if [ $# -gt 0 ]; then
+				custom_worktree_name="$1"
+			else
+				echo ""
+				echo "${RED}Error: No worktree name specified.$NC"
 				exit 1
 			fi
 			;;
@@ -116,11 +136,15 @@ generate_worktree_path() {
 		worktree_dir="../worktrees/"
 	fi
 
-	# Sanitize branch name for worktree directory
+	# Use custom worktree name if provided, otherwise sanitize branch name
 	local worktree_name
-	sanitize_branch_name "$target_branch" worktree_name
-	if [ $? -ne 0 ]; then
-		return 1
+	if [ -n "$custom_worktree_name" ]; then
+		worktree_name="$custom_worktree_name"
+	else
+		sanitize_branch_name "$target_branch" worktree_name
+		if [ $? -ne 0 ]; then
+			return 1
+		fi
 	fi
 	local worktree_path="${worktree_dir}${worktree_name}"
 

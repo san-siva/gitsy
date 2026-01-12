@@ -127,3 +127,42 @@ teardown() {
     # Should be sanitized (lowercase, underscores)
     [[ "$result_path" == *"feature_test_branch"* ]]
 }
+
+@test "generate_worktree_path: uses custom_worktree_name when set" {
+    mkdir -p ../worktrees
+    custom_worktree_name="my-custom-dir"
+    local result_path
+    generate_worktree_path "feature/test-branch" result_path
+
+    # Should use custom name instead of sanitized branch name
+    [[ "$result_path" == *"my-custom-dir"* ]]
+    [[ "$result_path" != *"feature_test_branch"* ]]
+}
+
+@test "generate_worktree_path: ignores custom_worktree_name when empty" {
+    mkdir -p ../worktrees
+    custom_worktree_name=""
+    local result_path
+    generate_worktree_path "feature/test-branch" result_path
+
+    # Should use sanitized branch name when custom name is empty
+    [[ "$result_path" == *"feature_test_branch"* ]]
+}
+
+@test "generate_worktree_path: custom_worktree_name works with unique path generation" {
+    mkdir -p ../worktrees
+    custom_worktree_name="custom-name"
+    local result_path
+
+    generate_worktree_path "test-branch" result_path
+    local first_path="$result_path"
+    mkdir -p "$first_path"
+
+    generate_worktree_path "test-branch" result_path
+    local second_path="$result_path"
+
+    # Both should use custom name, but second should be unique
+    [[ "$first_path" == *"custom-name"* ]]
+    [[ "$second_path" == *"custom-name_2"* ]]
+    [ "$first_path" != "$second_path" ]
+}

@@ -57,3 +57,21 @@ teardown() {
     type get_current_branch &>/dev/null
     [ $? -eq 0 ]
 }
+
+@test "main: parses --worktree-name option with equals sign" {
+    custom_worktree_name=""
+    set_flags "--target-branch=test-branch" "--worktree-name=my-custom-name"
+    [ "$custom_worktree_name" = "my-custom-name" ]
+}
+
+@test "main: parses --worktree-name option with space" {
+    custom_worktree_name=""
+    set_flags "--target-branch" "test-branch" "--worktree-name" "my-custom-name"
+    [ "$custom_worktree_name" = "my-custom-name" ]
+}
+
+@test "main: --worktree-name requires a value" {
+    run set_flags "--target-branch=test-branch" "--worktree-name"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "No worktree name specified" ]]
+}
