@@ -161,7 +161,7 @@ list_worktrees() {
 	printf "─┘\n"
 
 	print_message "" -1
-	print_message "${GREEN}Total worktrees: ${NC}${worktree_count}" -1
+	print_message "${GREEN}Total worktrees: ${worktree_count}${NC}" -1
 }
 
 main() {
