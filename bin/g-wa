@@ -235,8 +235,8 @@ checkout_or_create_branch() {
 	fi
 
 	print_message "" -1
-	print_message "${BLUE}Will create ${NC}${target_branch}${BLUE} worktree (cut from ${NC}${current_branch}${BLUE})${NC}" -1
-	print_message "Location: ${BLUE}${repo_name}/worktrees/${sanitized_target}${NC}" -1
+	print_message "${BLUE}Will create ${NC}${target_branch}${BLUE} worktree (cut from ${NC}${current_branch}${BLUE})${NC}" 0
+	print_message "Location: ${BLUE}${repo_name}/worktrees/${sanitized_target}${NC}" 0
 	print_message "" -1
 
 	create_new_branch=$(prompt_user true "Create new branch?" $((step_number + 2)))
