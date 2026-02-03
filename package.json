@@ -1,6 +1,6 @@
 {
   "name": "@san-siva/gitsy",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "A set of bash utilities for managing Git repositories with ease",
   "keywords": [
     "git",
