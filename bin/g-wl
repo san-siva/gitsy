@@ -109,6 +109,11 @@ list_worktrees() {
 	print_message "${GREEN}Worktrees:${NC}" -1
 	print_message "" -1
 
+	# Ensure "Directory Name" header fits
+	if [ $max_length -lt 14 ]; then
+		max_length=14
+	fi
+
 	# Calculate max branch name length for table formatting
 	local max_branch_length=15 # Minimum width
 	local worktree_count=${#dir_names[@]}
@@ -132,7 +137,7 @@ list_worktrees() {
 	printf "─┐\n"
 
 	# Print header
-	printf "│ ${PROMPT}%-${max_length}s${NC} │ ${PROMPT}%-${max_branch_length}s${NC} │\n" "Directory Name" "Branch Name"
+	printf "│ %-${max_length}s │ %-${max_branch_length}s │\n" "Directory Name" "Branch Name"
 
 	# Print header separator
 	printf "├─"
