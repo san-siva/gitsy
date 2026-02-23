@@ -240,11 +240,10 @@ main() {
 	validate_dependencies git figlet lolcat
 	print_banner
 
-	stash_changes $stash 1
-
-	local step_number=2
+	local step_number=1
 	if [ "$stash" = true ]; then
-		step_number=3
+		stash_changes $stash $step_number
+		step_number=2
 	fi
 
 	if [ -n "$worktree_name" ]; then

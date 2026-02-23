@@ -323,6 +323,7 @@ create_worktree() {
 		fi
 
 		print_message "${created_worktree_message}"
+		copy_to_clipboard "cd ${worktree_path}" "cd ${worktree_path} copied to clipboard."
 		return 0
 	fi
 
@@ -339,6 +340,7 @@ create_worktree() {
 	fi
 
 	print_message "${created_worktree_message}"
+	copy_to_clipboard "cd ${worktree_path}" "cd ${worktree_path} copied to clipboard."
 	return 0
 }
 
