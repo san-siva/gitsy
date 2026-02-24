@@ -20,6 +20,7 @@ target_branch=""
 source_branch=""
 full_diff=false
 files_only=false
+output_file=""
 
 set_flags() {
 	while [ $# -gt 0 ]; do
@@ -35,13 +36,32 @@ set_flags() {
 			echo "--source-branch BRANCH, --source-branch=BRANCH, -s=BRANCH, -s BRANCH   specify the source branch (defaults to current branch)"
 			echo "-f, --full                                                             show full diff and copy to clipboard"
 			echo "--files-only                                                           show only file names (no stats, no clipboard)"
-			exit 0
+		echo "-o FILE, --output-file FILE, --output-file=FILE                        write output to file instead of clipboard"
+		exit 0
 			;;
 		-f | --full)
 			full_diff=true
 			;;
 		--files-only)
 			files_only=true
+			;;
+		-o=* | --output-file=*)
+			output_file="${1#*=}"
+			if [ -z "$output_file" ]; then
+				print_message "" -1
+				print_message "${RED}Error: No output file specified.${NC}" -1
+				exit 1
+			fi
+			;;
+		-o | --output-file)
+			shift
+			if [ $# -gt 0 ]; then
+				output_file="$1"
+			else
+				print_message "" -1
+				print_message "${RED}Error: No output file specified.${NC}" -1
+				exit 1
+			fi
 			;;
 		-t=* | --target-branch=*)
 			target_branch="${1#*=}"
@@ -164,11 +184,16 @@ show_full_diff() {
 		fi
 		echo "$formatted_output" | indent
 
-		# Copy formatted output to clipboard (strip color codes)
-		local clipboard_content
-		clipboard_content=$(sed $'s/\033\[[0-9;]*m//g' <<< "${formatted_output}")
+		# Strip color codes for file/clipboard output
+		local plain_content
+		plain_content=$(sed $'s/\033\[[0-9;]*m//g' <<< "${formatted_output}")
 		if [ $? -eq 0 ]; then
-			copy_to_clipboard "$clipboard_content" "Formatted diff copied to clipboard."
+			if [ -n "$output_file" ]; then
+				echo "$plain_content" > "$output_file"
+				print_message "${BLUE}Formatted diff written to ${NC}${output_file}${BLUE}.${NC}"
+			else
+				copy_to_clipboard "$plain_content" "Formatted diff copied to clipboard."
+			fi
 		fi
 	else
 		print_message "${BLUE}No changes found between ${NC}${source_branch}${BLUE} and ${NC}${target_branch}${BLUE}.${NC}"
@@ -186,7 +211,12 @@ show_files_only() {
 
 	if [ -n "$filenames" ]; then
 		echo "$filenames" | indent
-		copy_to_clipboard "$filenames" "Filenames copied to clipboard."
+		if [ -n "$output_file" ]; then
+			echo "$filenames" > "$output_file"
+			print_message "${BLUE}Filenames written to ${NC}${output_file}${BLUE}.${NC}"
+		else
+			copy_to_clipboard "$filenames" "Filenames copied to clipboard."
+		fi
 	else
 		print_message "${BLUE}No changes found between ${NC}${source_branch}${BLUE} and ${NC}${target_branch}${BLUE}.${NC}"
 	fi
@@ -211,7 +241,12 @@ show_stat_summary() {
 			print_message "${RED}Failed to generate stats for clipboard. [Fail]${NC}" -1
 			return 1
 		fi
-		copy_to_clipboard "$stats_content" "Stats copied to clipboard."
+		if [ -n "$output_file" ]; then
+			echo "$stats_content" > "$output_file"
+			print_message "${BLUE}Stats written to ${NC}${output_file}${BLUE}.${NC}"
+		else
+			copy_to_clipboard "$stats_content" "Stats copied to clipboard."
+		fi
 	else
 		print_message "${BLUE}No changes found between ${NC}${source_branch}${BLUE} and ${NC}${target_branch}${BLUE}.${NC}"
 	fi
