@@ -470,6 +470,9 @@ check_if_target_branch_is_set() {
 
 navigate_to_dir() {
 	local dir=$1
+	if [ -z "$dir" ]; then
+		return 1
+	fi
 	if pwd | grep -Fq "$dir"; then
 		return 0
 	fi

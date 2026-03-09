@@ -325,8 +325,11 @@ create_main_dir() {
 	fi
 
 	# Create main directory
-	local main_dir="${git_root}/main"
-	if ! mkdir -p "$main_dir"; then
+	# Note: must NOT name this variable "main_dir" — that would shadow the nameref
+	# result_var=$4 refers to a variable named "main_dir" in the caller's scope,
+	# and bash resolves namerefs to the innermost local with that name.
+	local _new_main_dir="${git_root}/main"
+	if ! mkdir -p "$_new_main_dir"; then
 		print_message "" -1
 		print_message "${RED}Failed to create main directory. [Fail]${NC}" -1
 		# Restore from temp
@@ -336,7 +339,7 @@ create_main_dir() {
 	fi
 
 	# Move everything from temp to main
-	if ! (shopt -s dotglob && mv "$temp_dir"/* "$main_dir/" 2>&1); then
+	if ! (shopt -s dotglob && mv "$temp_dir"/* "$_new_main_dir/" 2>&1); then
 		print_message "" -1
 		print_message "${RED}Failed to move contents to main directory. [Fail]${NC}" -1
 		exit 1
@@ -345,7 +348,7 @@ create_main_dir() {
 	# Clean up temp directory
 	rm -rf "$temp_dir"
 
-	result_var="$main_dir"
+	result_var="$_new_main_dir"
 	return 0
 }
 
@@ -357,7 +360,8 @@ checkout_main_in_main_branch() {
 
 	# Checkout the default branch into main
 	print_message "${BLUE}Creating main worktree...${NC}" $step_number
-	if ! git -c color.ui=always checkout "$default_branch" 2>&1 | indent; then
+	git -c color.ui=always checkout "$default_branch" 2>&1 | indent
+	if [ ${PIPESTATUS[0]} -ne 0 ]; then
 		print_message "" -1
 		print_message "${RED}Failed to checkout ${NC}${default_branch}${RED} branch. [Fail]${NC}" -1
 		exit 1
