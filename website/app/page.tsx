@@ -21,7 +21,11 @@ export default function Home() {
 					'Versatile bash utilities for managing Git repositories with ease. Automate common Git operations like checkout, push, pull, worktrees, and more.',
 				applicationCategory: 'DeveloperApplication',
 				operatingSystem: 'macOS, Linux',
-				author: { '@type': 'Person', name: 'Santhosh Siva', url: 'https://santhoshsiva.dev' },
+				author: {
+					'@type': 'Person',
+					name: 'Santhosh Siva',
+					url: 'https://santhoshsiva.dev',
+				},
 				url: SITE_URL,
 			}}
 		>
@@ -294,8 +298,8 @@ export default function Home() {
 					<p className={styles['margin-bottom--2']}>
 						Create a new git worktree with intelligent repository restructuring.
 						On first use, automatically reorganizes your repository to support
-						multiple worktrees. New branches are created from your current branch,
-						preserving your branch context.
+						multiple worktrees. New branches are created from your current
+						branch, preserving your branch context.
 					</p>
 					<CodeBlock
 						language="bash"
@@ -354,8 +358,13 @@ export default function Home() {
 									Create <code>worktrees/</code> directory structure
 								</li>
 								<li>Checkout default branch in main directory</li>
-								<li>Create worktree for your original branch (if not on default branch)</li>
-								<li>Navigate to original branch worktree to preserve context</li>
+								<li>
+									Create worktree for your original branch (if not on default
+									branch)
+								</li>
+								<li>
+									Navigate to original branch worktree to preserve context
+								</li>
 							</ul>
 						</li>
 						<li>
@@ -363,9 +372,9 @@ export default function Home() {
 							<ul>
 								<li>Check if worktree already exists for the branch</li>
 								<li>
-									Use custom directory name if <code>--worktree-name</code> is specified,
-									otherwise sanitize branch name (lowercase, replace special chars with{' '}
-									<code>_</code>)
+									Use custom directory name if <code>--worktree-name</code> is
+									specified, otherwise sanitize branch name (lowercase, replace
+									special chars with <code>_</code>)
 								</li>
 								<li>
 									Convert to absolute path for clarity (e.g.{' '}
@@ -387,7 +396,10 @@ export default function Home() {
 						<li>
 							<strong>Safety features:</strong>
 							<ul>
-								<li>New branches are created from your current branch (preserves branch context)</li>
+								<li>
+									New branches are created from your current branch (preserves
+									branch context)
+								</li>
 								<li>Prevents duplicate worktrees</li>
 								<li>
 									Optional stashing with <code>--stash-changes</code> flag
@@ -395,7 +407,10 @@ export default function Home() {
 								<li>
 									Custom directory naming with <code>--worktree-name</code> flag
 								</li>
-								<li>Requires confirmation before restructuring or creating worktrees</li>
+								<li>
+									Requires confirmation before restructuring or creating
+									worktrees
+								</li>
 								<li>Clear error messages with actionable guidance</li>
 							</ul>
 						</li>
@@ -403,10 +418,12 @@ export default function Home() {
 
 					<Callout type="info" hasMarginDown>
 						<p>
-							<strong>Branch Context:</strong> When creating a new branch, it will be cut from your current branch.
-							For example, if you&apos;re on <code>develop</code> and run <code>g-wa -t feature/new</code>,
-							the new branch will be created from <code>develop</code>, not from <code>main</code>.
-							This ensures your new branch inherits the correct context.
+							<strong>Branch Context:</strong> When creating a new branch, it
+							will be cut from your current branch. For example, if you&apos;re
+							on <code>develop</code> and run <code>g-wa -t feature/new</code>,
+							the new branch will be created from <code>develop</code>, not from{' '}
+							<code>main</code>. This ensures your new branch inherits the
+							correct context.
 						</p>
 					</Callout>
 				</BlogSection>
@@ -731,7 +748,15 @@ export default function Home() {
 
 			<BlogSection title="About">
 				<p>
-					<strong>Author:</strong> Santhosh Siva
+					<strong>Author:</strong>{' '}
+					<a
+						href="https://santhoshsiva.dev"
+						target="_blank"
+						rel="noopener noreferrer"
+						className={styles['a--highlighted']}
+					>
+						Santhosh Siva
+					</a>
 					<br />
 					<strong>GitHub:</strong>{' '}
 					<a
