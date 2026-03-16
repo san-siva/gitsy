@@ -5,6 +5,7 @@ import '@san-siva/stylekit/styles/globals.scss';
 import styles from '@san-siva/stylekit/styles/index.module.scss';
 
 import '@san-siva/blogkit/styles.css';
+import { SITE_URL } from './constants';
 
 const montserrat = Montserrat({
 	subsets: ['latin'] as const,
@@ -27,7 +28,6 @@ const jetbrainsMono = JetBrains_Mono({
 	variable: '--font-jetbrains-mono',
 });
 
-const SITE_URL = 'https://gitsy.dev';
 const TITLE = 'Gitsy - Git commands, turbocharged';
 const DESCRIPTION =
 	'Versatile bash utilities for managing Git repositories with ease. Automate common Git operations like checkout, push, pull, worktrees, and more.';

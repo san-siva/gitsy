@@ -5,7 +5,7 @@ A set of bash utilities for managing Git repositories with ease. Provides user-f
 
 ## Documentation
 
-For complete documentation, usage examples, and detailed command reference, visit the [gitsy documentation website](https://gitsy-56895.web.app).
+For complete documentation, usage examples, and detailed command reference, visit the [gitsy documentation website](https://gitsy.santhoshsiva.dev).
 
 ## System Requirements
 
@@ -151,7 +151,7 @@ g-push
 g-diff -s main -t feature-branch
 ```
 
-For complete command documentation and advanced usage examples, visit the [gitsy documentation website](https://gitsy-56895.web.app).
+For complete command documentation and advanced usage examples, visit the [gitsy documentation website](https://gitsy.santhoshsiva.dev).
 
 ## Features
 
@@ -267,7 +267,7 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 **Santhosh Siva**
 - GitHub: [@san-siva](https://github.com/san-siva)
-- Documentation: [gitsy-56895.web.app](https://gitsy-56895.web.app)
+- Documentation: [gitsy.santhoshsiva.dev](https://gitsy.santhoshsiva.dev)
 
 ## Acknowledgments
 

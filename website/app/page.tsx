@@ -8,8 +8,7 @@ import {
 } from '@san-siva/blogkit';
 import styles from './page.module.scss';
 import { HELP_TEXT, CODE_EXAMPLES } from './codeExamples';
-
-const SITE_URL = 'https://gitsy.dev';
+import { SITE_URL } from './constants';
 
 export default function Home() {
 	return (
