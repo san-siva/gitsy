@@ -27,9 +27,38 @@ const jetbrainsMono = JetBrains_Mono({
 	variable: '--font-jetbrains-mono',
 });
 
+const SITE_URL = 'https://gitsy.dev';
+const TITLE = 'Gitsy - Git commands, turbocharged';
+const DESCRIPTION =
+	'Versatile bash utilities for managing Git repositories with ease. Automate common Git operations like checkout, push, pull, worktrees, and more.';
+
 export const metadata: Metadata = {
-	title: 'Gitsy - Git commands, turbocharged',
-	description: 'Versatile bash utilities for managing Git repositories with ease. Automate common Git operations like checkout, push, pull, worktrees, and more.',
+	title: TITLE,
+	description: DESCRIPTION,
+	keywords: [
+		'git',
+		'bash',
+		'shell scripting',
+		'git utilities',
+		'developer tools',
+		'worktree',
+		'git commands',
+	],
+	authors: [{ name: 'Santhosh Siva' }],
+	alternates: {
+		canonical: `${SITE_URL}/`,
+	},
+	openGraph: {
+		title: TITLE,
+		description: DESCRIPTION,
+		type: 'website',
+		url: `${SITE_URL}/`,
+	},
+	twitter: {
+		card: 'summary_large_image',
+		title: TITLE,
+		description: DESCRIPTION,
+	},
 };
 
 export default function RootLayout({

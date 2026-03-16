@@ -9,9 +9,23 @@ import {
 import styles from './page.module.scss';
 import { HELP_TEXT, CODE_EXAMPLES } from './codeExamples';
 
+const SITE_URL = 'https://gitsy.dev';
+
 export default function Home() {
 	return (
-		<Blog>
+		<Blog
+			jsonLd={{
+				'@context': 'https://schema.org',
+				'@type': 'SoftwareApplication',
+				name: 'Gitsy',
+				description:
+					'Versatile bash utilities for managing Git repositories with ease. Automate common Git operations like checkout, push, pull, worktrees, and more.',
+				applicationCategory: 'DeveloperApplication',
+				operatingSystem: 'macOS, Linux',
+				author: { '@type': 'Person', name: 'Santhosh Siva', url: 'https://santhoshsiva.dev' },
+				url: SITE_URL,
+			}}
+		>
 			<BlogHeader title={['Gitsy']} desc={['Git commands, turbocharged']} />
 			<BlogSection title="Overview">
 				<p>
