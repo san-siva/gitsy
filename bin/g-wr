@@ -210,10 +210,16 @@ remove_worktree() {
 
 	print_message "${BLUE}Removing worktree at ${NC}${worktree_path}${BLUE}...${NC}" $step_number
 
-	# Always try using git worktree remove first with --force flag
-	if git -c color.ui=always worktree remove --force "$worktree_path" 2>&1 | indent; then
+	local worktree_parent
+	worktree_parent=$(dirname "$worktree_path")
+
+	# Always try using git worktree remove first with --force --force to handle
+	# both uncommitted changes and untracked files
+	if git -c color.ui=always worktree remove --force --force "$worktree_path" 2>&1 | indent; then
 		# Verify the directory was actually removed
 		if [ ! -d "$worktree_path" ]; then
+			# Navigate to parent in case we were running from inside the removed worktree
+			cd "$worktree_parent" 2>/dev/null
 			print_message "${GREEN}Worktree removed successfully.${NC}" 0
 			return 0
 		fi
@@ -222,6 +228,8 @@ remove_worktree() {
 	# Fallback to rm -rf if git worktree remove failed
 	print_message "${PROMPT}Git worktree remove incomplete. Attempting manual removal...${NC}" 0
 	if rm -rf "$worktree_path" 2>&1 | indent; then
+		# Navigate to parent before pruning since the worktree directory no longer exists
+		cd "$worktree_parent" 2>/dev/null
 		# Also need to prune the worktree from git's records
 		git -c color.ui=always worktree prune 2>&1 | indent
 		# Verify the directory was actually removed
