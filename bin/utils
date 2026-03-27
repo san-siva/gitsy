@@ -638,6 +638,29 @@ get_repo_name() {
 	return 0
 }
 
+sync_submodules() {
+	local step_number=$1
+
+	if [ -z "$step_number" ]; then
+		step_number=0
+	fi
+
+	# Skip if no submodules exist
+	if [ ! -f ".gitmodules" ] || ! grep -q '\[submodule' .gitmodules 2>/dev/null; then
+		return 0
+	fi
+
+	print_message "${BLUE}Syncing submodules...${NC}" $step_number
+
+	if ! git -c color.ui=always submodule update --init 2>&1 | indent; then
+		print_message "" -1
+		print_message "${RED}Failed to sync submodules. [Fail]${NC}" -1
+		exit 1
+	fi
+
+	print_message "${GREEN}Submodules synced successfully.${NC}" 0
+}
+
 get_repo_info() {
 	local -n git_root_ref=$1
 	local -n current_dir_ref=$2

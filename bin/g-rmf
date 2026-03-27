@@ -60,6 +60,7 @@ main() {
 	validate_dependencies git figlet lolcat
 	print_banner
 	stash_changes true 1 "$tag_message"
+	sync_submodules 2
 }
 
 

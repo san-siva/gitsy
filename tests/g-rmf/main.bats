@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-# Tests for main function in g-rto
+# Tests for main function in g-rmf
 
 setup() {
     export TEST_DIR="$(mktemp -d)"
@@ -11,7 +11,7 @@ setup() {
     git commit --allow-empty -m "Initial commit" -q
 
     source "${BATS_TEST_DIRNAME}/../../bin/utils"
-    source "${BATS_TEST_DIRNAME}/../../bin/g-rto"
+    source "${BATS_TEST_DIRNAME}/../../bin/g-rmf"
 }
 
 teardown() {
@@ -28,28 +28,8 @@ teardown() {
     [ $? -eq 0 ]
 }
 
-@test "main: gets current branch" {
-    type get_current_branch &>/dev/null
-    [ $? -eq 0 ]
-}
-
 @test "main: calls stash_changes" {
     type stash_changes &>/dev/null
-    [ $? -eq 0 ]
-}
-
-@test "main: calls fetch_changes" {
-    type fetch_changes &>/dev/null
-    [ $? -eq 0 ]
-}
-
-@test "main: calls reset_to_target_branch" {
-    type reset_to_target_branch &>/dev/null
-    [ $? -eq 0 ]
-}
-
-@test "main: calls pull_changes" {
-    type pull_changes &>/dev/null
     [ $? -eq 0 ]
 }
 

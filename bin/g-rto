@@ -53,6 +53,7 @@ main() {
 
 	reset_to_target_branch "$target_branch" 3
 	pull_changes "$target_branch" 4
+	sync_submodules 5
 }
 
 
