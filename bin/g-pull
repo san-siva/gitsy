@@ -69,9 +69,11 @@ main() {
 		print_message "${BLUE}Fetching changes...${NC}" 1
 		fetch_changes "$target_branch"
 		pull_changes "$target_branch" 2
+		sync_submodules 3
 		exit 0
 	fi
 	pull_changes "$target_branch" 1
+	sync_submodules 2
 }
 
 
