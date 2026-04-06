@@ -652,7 +652,7 @@ sync_submodules() {
 
 	print_message "${BLUE}Syncing submodules...${NC}" $step_number
 
-	if ! git -c color.ui=always submodule update --init 2>&1 | indent; then
+	if ! git -c color.ui=always submodule update --init --recursive 2>&1 | indent; then
 		print_message "" -1
 		print_message "${RED}Failed to sync submodules. [Fail]${NC}" -1
 		exit 1
