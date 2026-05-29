@@ -52,6 +52,27 @@ indent() {
 	sed "s/^/${prefix}/"
 }
 
+# Run a git command, capturing its output to a temp file and indenting it.
+#
+# Why not pipe git directly into indent? After fetch/pull, git spawns
+# `git maintenance run --auto --detach`. That detached process inherits git's
+# stdout — i.e. the write end of the pipe to indent's sed — and holds it open
+# while it runs background gc/repack. sed then blocks waiting for EOF that
+# never comes until maintenance finishes, so the whole command appears to hang.
+# Writing to a file instead means the detached process inherits a file fd (no
+# reader waiting on EOF), so we return immediately and maintenance runs async.
+#
+# Returns git's exit code (not sed's, as a direct `git ... | indent` would).
+run_git_indented() {
+	local tmp
+	tmp=$(mktemp)
+	git "$@" >"$tmp" 2>&1
+	local rc=$?
+	indent <"$tmp"
+	rm -f "$tmp"
+	return $rc
+}
+
 install_dependency() {
 	local cmd=$1
 	local package=$2
@@ -231,7 +252,7 @@ fetch_changes() {
 		return 1
 	fi
 
-	if ! git -c color.ui=always fetch origin "${target_branch}" 2>&1 | indent; then
+	if ! run_git_indented -c color.ui=always fetch origin "${target_branch}"; then
 		print_message "${PROMPT}Auto-Fetch failed, Please do it manually.${NC}"
 		return 1
 	else
@@ -384,8 +405,8 @@ pull_changes() {
 	fi
 
 	print_message "${BLUE}Pulling changes from ${NC}remote/${target_branch}${BLUE}...${NC}" $step_number
-	git -c color.ui=always pull origin "${target_branch}" 2>&1 | indent
-	local pull_exit=${PIPESTATUS[0]}
+	run_git_indented -c color.ui=always pull origin "${target_branch}"
+	local pull_exit=$?
 	if [ $pull_exit -ne 0 ]; then
 		print_message "" -1
 		if git diff --name-only --diff-filter=U 2>/dev/null | grep -q .; then
