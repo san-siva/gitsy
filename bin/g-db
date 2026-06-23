@@ -30,6 +30,7 @@ set_flags() {
 			echo "options:"
 			echo "-h, --help                                                             show brief help"
 			echo "--target-branch BRANCH, --target-branch=BRANCH, -t=BRANCH, -t BRANCH   specify the branch to delete"
+			echo "-f, --force                                                            skip all confirmation prompts (assume yes)"
 			exit 0
 			;;
 		-t=* | --target-branch=*)
@@ -51,9 +52,11 @@ set_flags() {
 			fi
 			;;
 		*)
-			echo ""
-			echo "${RED}Unknown option:${NC} $1"
-			exit 1
+			if ! set_global_flag "$1"; then
+				echo ""
+				echo "${RED}Unknown option:${NC} $1"
+				exit 1
+			fi
 			;;
 		esac
 		shift

@@ -32,6 +32,7 @@ set_flags() {
 			echo "-h, --help                                                          show brief help"
 			echo "--target-branch BRANCH, --target-branch=BRANCH, -t=BRANCH, -t BRANCH   specify the target branch"
 			echo "--stash-changes                                                     stash changes before proceeding"
+			echo "-f, --force                                                         skip all confirmation prompts (assume yes)"
 			exit 0
 			;;
 		-t=* | --target-branch=*)
@@ -56,8 +57,10 @@ set_flags() {
 			stash=true
 			;;
 		*)
-			echo "${RED}Unknown option:${NC} $1"
-			exit
+			if ! set_global_flag "$1"; then
+				echo "${RED}Unknown option:${NC} $1"
+				exit
+			fi
 			;;
 		esac
 		shift

@@ -14,6 +14,21 @@ overwrite() { echo -e "\r\033[1A\033[0K$@"; }
 
 default_spaces="    "
 
+# When true, all confirmation prompts are auto-answered "yes" (see prompt_user).
+FORCE=false
+
+# Handle flags common to all commands. Returns 0 if $1 was a known global
+# flag (and sets state), 1 otherwise so the caller can report it as unknown.
+set_global_flag() {
+	case "$1" in
+	-f | --force)
+		FORCE=true
+		return 0
+		;;
+	esac
+	return 1
+}
+
 print_message() {
 	local number=$2
 	local message=$1
@@ -104,6 +119,12 @@ prompt_user() {
 	local default_to_yes=$1
 	local message=$2
 	local step_number=$3
+
+	# --force bypasses all confirmation prompts by assuming "yes".
+	if [ "$FORCE" = "true" ]; then
+		echo "y"
+		return 0
+	fi
 
 	if [ -n "$step_number" ] && [ "$step_number" -ne 0 ]; then
 		local prefix="$(printf "%${default_spaces}s")${step_number}. "

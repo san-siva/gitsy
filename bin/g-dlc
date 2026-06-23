@@ -29,28 +29,15 @@ set_flags() {
 			echo " "
 			echo "options:"
 			echo "-h, --help      show brief help"
-			echo "-f, --force     force discard without checking uncommitted changes"
+			echo "-f, --force     hard reset (discard uncommitted changes) and skip the confirmation prompt"
 			exit 0
 			;;
-		-f=* | --force=*)
-			if [ "${1#*=}" = "true" ]; then
-				force_mode=true
-			fi
-			;;
-		-f | --force)
-			shift
-			if [ $# -gt 0 ] && [ "$1" = "true" ]; then
-				force_mode=true
-			else
-				# If no argument or not 'true', treat -f as a flag
-				force_mode=true
-				continue
-			fi
-			;;
 		*)
-			echo ""
-			echo "${RED}Unknown option:${NC} $1"
-			exit 1
+			if ! set_global_flag "$1"; then
+				echo ""
+				echo "${RED}Unknown option:${NC} $1"
+				exit 1
+			fi
 			;;
 		esac
 		shift
@@ -108,6 +95,8 @@ discard_last_commit() {
 
 main() {
 	set_flags "$@"
+	# --force means both "hard reset" and "skip the confirmation prompt".
+	force_mode="$FORCE"
 	validate_dependencies git figlet lolcat
 	print_banner
 
