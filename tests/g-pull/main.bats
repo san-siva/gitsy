@@ -137,6 +137,66 @@ teardown() {
     [ -f "$local_dir/fetched.txt" ]
 }
 
+@test "main: --theirs resolves conflicts favoring remote changes" {
+    read -r origin_dir local_dir <<< "$(setup_repos)"
+
+    local default_branch
+    cd "$origin_dir"
+    default_branch=$(git rev-parse --abbrev-ref HEAD)
+
+    echo "base" > "$origin_dir/shared.txt"
+    git -C "$origin_dir" add shared.txt
+    git -C "$origin_dir" commit -q -m "Add shared file"
+    git -C "$origin_dir" push -q origin "$default_branch"
+
+    cd "$local_dir"
+    git pull -q origin "$default_branch"
+
+    echo "remote edit" > "$origin_dir/shared.txt"
+    git -C "$origin_dir" add shared.txt
+    git -C "$origin_dir" commit -q -m "Remote edit"
+    git -C "$origin_dir" push -q origin "$default_branch"
+
+    echo "local edit" > "$local_dir/shared.txt"
+    git -C "$local_dir" add shared.txt
+    git -C "$local_dir" commit -q -m "Local edit"
+
+    merge_strategy="theirs"
+    run pull_changes "$default_branch" 1 "$merge_strategy"
+    [ "$status" -eq 0 ]
+    [ "$(cat "$local_dir/shared.txt")" = "remote edit" ]
+}
+
+@test "main: --ours resolves conflicts favoring local changes" {
+    read -r origin_dir local_dir <<< "$(setup_repos)"
+
+    local default_branch
+    cd "$origin_dir"
+    default_branch=$(git rev-parse --abbrev-ref HEAD)
+
+    echo "base" > "$origin_dir/shared.txt"
+    git -C "$origin_dir" add shared.txt
+    git -C "$origin_dir" commit -q -m "Add shared file"
+    git -C "$origin_dir" push -q origin "$default_branch"
+
+    cd "$local_dir"
+    git pull -q origin "$default_branch"
+
+    echo "remote edit" > "$origin_dir/shared.txt"
+    git -C "$origin_dir" add shared.txt
+    git -C "$origin_dir" commit -q -m "Remote edit"
+    git -C "$origin_dir" push -q origin "$default_branch"
+
+    echo "local edit" > "$local_dir/shared.txt"
+    git -C "$local_dir" add shared.txt
+    git -C "$local_dir" commit -q -m "Local edit"
+
+    merge_strategy="ours"
+    run pull_changes "$default_branch" 1 "$merge_strategy"
+    [ "$status" -eq 0 ]
+    [ "$(cat "$local_dir/shared.txt")" = "local edit" ]
+}
+
 @test "main: does not report success when conflicts remain after pull" {
     read -r origin_dir local_dir <<< "$(setup_repos)"
 

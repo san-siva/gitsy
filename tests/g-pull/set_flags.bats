@@ -92,3 +92,33 @@ teardown() {
     set_flags
     [ "$do_fetch" = "false" ]
 }
+
+@test "set_flags: --theirs sets merge_strategy to theirs" {
+    merge_strategy=""
+    set_flags --theirs
+    [ "$merge_strategy" = "theirs" ]
+}
+
+@test "set_flags: --ours sets merge_strategy to ours" {
+    merge_strategy=""
+    set_flags --ours
+    [ "$merge_strategy" = "ours" ]
+}
+
+@test "set_flags: --ours and --theirs together exits 1" {
+    merge_strategy=""
+    run set_flags --ours --theirs
+    [ "$status" -eq 1 ]
+}
+
+@test "set_flags: --theirs and --ours together exits 1" {
+    merge_strategy=""
+    run set_flags --theirs --ours
+    [ "$status" -eq 1 ]
+}
+
+@test "set_flags: no flags leaves merge_strategy empty" {
+    merge_strategy=""
+    set_flags
+    [ -z "$merge_strategy" ]
+}

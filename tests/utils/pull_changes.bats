@@ -119,3 +119,67 @@ setup_repos() {
     [ "$status" -eq 1 ]
     [[ "$output" == *"Failed"* ]] || [[ "$output" == *"fail"* ]]
 }
+
+@test "pull_changes: --theirs strategy auto-resolves conflicts favoring remote" {
+    read -r origin_dir local_dir <<< "$(setup_repos)"
+
+    local default_branch
+    cd "$origin_dir"
+    default_branch=$(git rev-parse --abbrev-ref HEAD)
+
+    echo "original" > "$origin_dir/shared.txt"
+    git add shared.txt
+    git commit -q -m "Add shared file"
+    git push -q origin "$default_branch"
+
+    cd "$local_dir"
+    git pull -q origin "$default_branch"
+
+    echo "remote version" > "$origin_dir/shared.txt"
+    cd "$origin_dir"
+    git add shared.txt
+    git commit -q -m "Remote edit"
+    git push -q origin "$default_branch"
+
+    echo "local version" > "$local_dir/shared.txt"
+    cd "$local_dir"
+    git add shared.txt
+    git commit -q -m "Local edit"
+
+    run pull_changes "$default_branch" 1 "theirs"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"successfully"* ]]
+    [ "$(cat "$local_dir/shared.txt")" = "remote version" ]
+}
+
+@test "pull_changes: --ours strategy auto-resolves conflicts favoring local" {
+    read -r origin_dir local_dir <<< "$(setup_repos)"
+
+    local default_branch
+    cd "$origin_dir"
+    default_branch=$(git rev-parse --abbrev-ref HEAD)
+
+    echo "original" > "$origin_dir/shared.txt"
+    git add shared.txt
+    git commit -q -m "Add shared file"
+    git push -q origin "$default_branch"
+
+    cd "$local_dir"
+    git pull -q origin "$default_branch"
+
+    echo "remote version" > "$origin_dir/shared.txt"
+    cd "$origin_dir"
+    git add shared.txt
+    git commit -q -m "Remote edit"
+    git push -q origin "$default_branch"
+
+    echo "local version" > "$local_dir/shared.txt"
+    cd "$local_dir"
+    git add shared.txt
+    git commit -q -m "Local edit"
+
+    run pull_changes "$default_branch" 1 "ours"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"successfully"* ]]
+    [ "$(cat "$local_dir/shared.txt")" = "local version" ]
+}

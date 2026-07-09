@@ -414,6 +414,7 @@ reset_to_target_branch() {
 pull_changes() {
 	local target_branch=$1
 	local step_number=$2
+	local merge_strategy=$3
 
 	if [ -z "$step_number" ]; then
 		step_number=0
@@ -425,8 +426,17 @@ pull_changes() {
 		exit 1
 	fi
 
-	print_message "${BLUE}Pulling changes from ${NC}remote/${target_branch}${BLUE}...${NC}" $step_number
-	run_git_indented -c color.ui=always pull origin "${target_branch}"
+	local strategy_suffix=""
+	if [ -n "$merge_strategy" ]; then
+		strategy_suffix=" ${BLUE}(auto-resolving conflicts with ${NC}-X ${merge_strategy}${BLUE})${NC}"
+	fi
+
+	print_message "${BLUE}Pulling changes from ${NC}remote/${target_branch}${BLUE}...${strategy_suffix}${NC}" $step_number
+	if [ -n "$merge_strategy" ]; then
+		run_git_indented -c color.ui=always pull -X "${merge_strategy}" origin "${target_branch}"
+	else
+		run_git_indented -c color.ui=always pull origin "${target_branch}"
+	fi
 	local pull_exit=$?
 	if [ $pull_exit -ne 0 ]; then
 		print_message "" -1
