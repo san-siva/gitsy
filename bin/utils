@@ -486,14 +486,14 @@ push_changes() {
 
 	if [ "$should_force_push" = "true" ]; then
 		print_message "${BLUE}Force pushing changes to ${NC}remote/${target_branch}${BLUE}...${NC}" $step_number
-		if ! git -c color.ui=always push --force origin "${target_branch}" 2>&1 | indent; then
+		if ! run_git_indented -c color.ui=always push --force origin "${target_branch}"; then
 			print_message "" -1
 			print_message "${RED}Failed to force push changes to remote. [Fail]${NC}" -1
 			exit 1
 		fi
 	else
 		print_message "${BLUE}Pushing changes to ${NC}remote/${target_branch}${BLUE}...${NC}" $step_number
-		if ! git -c color.ui=always push -u origin "${target_branch}" 2>&1 | indent; then
+		if ! run_git_indented -c color.ui=always push -u origin "${target_branch}"; then
 			print_message "" -1
 			print_message "${RED}Failed to push changes to remote. [Fail]${NC}" -1
 			exit 1
