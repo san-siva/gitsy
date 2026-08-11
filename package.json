@@ -37,7 +37,8 @@
     "g-rto": "./bin/g-rto",
     "g-cb": "./bin/g-cb",
     "g-s": "./bin/g-s",
-    "g-diff": "./bin/g-diff"
+    "g-diff": "./bin/g-diff",
+    "g-wh": "./bin/g-wh"
   },
   "files": [
     "bin",

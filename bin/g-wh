@@ -1,0 +1,420 @@
+#!/usr/bin/env bash
+
+# Author: Santhosh Siva
+# Date Created: 09-07-2026
+
+# Description:
+# This script detects and repairs a bricked git worktree.
+# The main failure mode it targets: a linked worktree keeps a private
+# gitdir per submodule under <common-dir>/worktrees/<name>/modules/<path>.
+# If that setup gets interrupted (killed process, crash) mid-merge, the
+# stub is left with only a config file and no HEAD/objects/refs, which
+# makes every git command in the worktree fail with
+# "fatal: not a git repository: ...modules/<path>".
+# It also clears a stale index.lock left by an interrupted git process.
+
+# Resolve script directory (works with symlinks for npm global install)
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+	DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+	SOURCE="$(readlink "$SOURCE")"
+	[[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+source "$SCRIPT_DIR/utils"
+
+# Default Values
+target_branch=
+worktree_name=
+heal_all=false
+dry_run=false
+
+set_flags() {
+	while [ $# -gt 0 ]; do
+		case "$1" in
+		-h | --help)
+			echo "g-wh - detect and repair a bricked git worktree"
+			echo " "
+			echo "g-wh [options]"
+			echo " "
+			echo "options:"
+			echo "-h, --help                                                             show brief help"
+			echo "--target-branch BRANCH, --target-branch=BRANCH, -t=BRANCH, -t BRANCH   heal the worktree checked out at BRANCH"
+			echo "--worktree-name NAME, --worktree-name=NAME, -w=NAME, -w NAME           heal the worktree directory named NAME"
+			echo "-a, --all                                                              heal every worktree"
+			echo "--dry-run                                                              report problems without fixing them"
+			echo "-f, --force                                                            skip all confirmation prompts (assume yes)"
+			echo " "
+			echo "With no options, heals the worktree at the current directory."
+			exit 0
+			;;
+		-t=* | --target-branch=*)
+			target_branch="${1#*=}"
+			if [ -z "$target_branch" ]; then
+				echo ""
+				echo "${RED}Error: No target branch specified.${NC}"
+				exit 1
+			fi
+			;;
+		-t | --target-branch)
+			shift
+			if [ $# -gt 0 ]; then
+				target_branch="$1"
+			else
+				echo ""
+				echo "${RED}Error: No target branch specified.${NC}"
+				exit 1
+			fi
+			;;
+		-w=* | --worktree-name=*)
+			worktree_name="${1#*=}"
+			if [ -z "$worktree_name" ]; then
+				echo ""
+				echo "${RED}Error: No worktree name specified.${NC}"
+				exit 1
+			fi
+			;;
+		-w | --worktree-name)
+			shift
+			if [ $# -gt 0 ]; then
+				worktree_name="$1"
+			else
+				echo ""
+				echo "${RED}Error: No worktree name specified.${NC}"
+				exit 1
+			fi
+			;;
+		-a | --all)
+			heal_all=true
+			;;
+		--dry-run)
+			dry_run=true
+			;;
+		*)
+			if ! set_global_flag "$1"; then
+				echo ""
+				echo "${RED}Unknown option:${NC} $1"
+				exit 1
+			fi
+			;;
+		esac
+		shift
+	done
+}
+
+# Resolve the absolute git-dir and git-common-dir for a worktree without
+# touching submodules, so this keeps working even on a bricked worktree.
+resolve_worktree_dirs() {
+	local worktree_path=$1
+	local -n git_dir_ref=$2
+	local -n common_dir_ref=$3
+
+	git_dir_ref=$(cd "$worktree_path" 2>/dev/null && git rev-parse --absolute-git-dir 2>&1)
+	if [ $? -ne 0 ] || [ -z "$git_dir_ref" ]; then
+		return 1
+	fi
+
+	local relative_common_dir
+	relative_common_dir=$(cd "$worktree_path" 2>/dev/null && git rev-parse --git-common-dir 2>&1)
+	if [ $? -ne 0 ] || [ -z "$relative_common_dir" ]; then
+		return 1
+	fi
+
+	common_dir_ref=$(cd "$worktree_path" 2>/dev/null && cd "$relative_common_dir" 2>/dev/null && pwd)
+	if [ -z "$common_dir_ref" ]; then
+		return 1
+	fi
+
+	return 0
+}
+
+# List submodule paths declared in a worktree's .gitmodules (empty if none).
+list_submodule_paths() {
+	local worktree_path=$1
+	local -n paths_ref=$2
+
+	paths_ref=()
+	if [ ! -f "$worktree_path/.gitmodules" ]; then
+		return 0
+	fi
+
+	while IFS= read -r path; do
+		[ -n "$path" ] && paths_ref+=("$path")
+	done < <(git config -f "$worktree_path/.gitmodules" --get-regexp '\.path$' 2>/dev/null | awk '{print $2}')
+
+	return 0
+}
+
+# A submodule gitdir is broken if it exists but is missing the pieces that
+# make it a working repository (a directory left behind mid-setup).
+is_submodule_gitdir_broken() {
+	local submodule_gitdir=$1
+
+	if [ ! -d "$submodule_gitdir" ]; then
+		# Not created yet at all - normal, not broken.
+		return 1
+	fi
+
+	if [ -f "$submodule_gitdir/HEAD" ] && [ -d "$submodule_gitdir/objects" ]; then
+		return 1
+	fi
+
+	return 0
+}
+
+# Find broken submodule gitdirs for one worktree.
+# Populates two parallel namerefs: submodule paths and their gitdir paths.
+find_broken_submodules() {
+	local worktree_path=$1
+	local -n broken_paths_ref=$2
+	local -n broken_gitdirs_ref=$3
+
+	broken_paths_ref=()
+	broken_gitdirs_ref=()
+
+	local git_dir common_dir
+	if ! resolve_worktree_dirs "$worktree_path" git_dir common_dir; then
+		return 1
+	fi
+
+	local -a submodule_paths
+	list_submodule_paths "$worktree_path" submodule_paths
+	if [ ${#submodule_paths[@]} -eq 0 ]; then
+		return 0
+	fi
+
+	local is_linked_worktree=true
+	if [ "$git_dir" = "$common_dir" ]; then
+		is_linked_worktree=false
+	fi
+
+	local submodule_gitdir
+	for path in "${submodule_paths[@]}"; do
+		if [ "$is_linked_worktree" = true ]; then
+			local worktree_admin_name
+			worktree_admin_name=$(basename "$git_dir")
+			submodule_gitdir="$common_dir/worktrees/$worktree_admin_name/modules/$path"
+		else
+			submodule_gitdir="$common_dir/modules/$path"
+		fi
+
+		if is_submodule_gitdir_broken "$submodule_gitdir"; then
+			broken_paths_ref+=("$path")
+			broken_gitdirs_ref+=("$submodule_gitdir")
+		fi
+	done
+
+	return 0
+}
+
+# Runs submodule update for one submodule, indenting output while still
+# returning git's real exit code (a plain `cmd | indent` would return
+# indent/sed's exit code instead, masking failures).
+try_submodule_update() {
+	local worktree_path=$1
+	local submodule_path=$2
+
+	local output
+	output=$(cd "$worktree_path" && git -c color.ui=always submodule update --init --recursive -- "$submodule_path" 2>&1)
+	local exit_code=$?
+	echo "$output" | indent
+	return $exit_code
+}
+
+repair_broken_submodule() {
+	local worktree_path=$1
+	local submodule_path=$2
+	local submodule_gitdir=$3
+	local step_number=$4
+
+	print_message "${BLUE}Removing incomplete gitdir for ${NC}${submodule_path}${BLUE}...${NC}" $step_number
+	rm -rf "$submodule_gitdir"
+	if [ -d "$submodule_gitdir" ]; then
+		print_message "" -1
+		print_message "${RED}Failed to remove ${NC}${submodule_gitdir}${RED}. [Fail]${NC}" -1
+		return 1
+	fi
+	print_message "${GREEN}Removed. Re-initializing submodule...${NC}" 0
+
+	if try_submodule_update "$worktree_path" "$submodule_path"; then
+		print_message "${GREEN}${submodule_path} healed. [DONE]${NC}" 0
+		return 0
+	fi
+
+	# The submodule's checkout may still carry a .git file pointing at the
+	# gitdir we just removed - git can't repair that in place, so the
+	# checkout itself has to go too before update --init can reclone it.
+	print_message "${PROMPT}Retrying after clearing the submodule checkout...${NC}" 0
+	rm -rf "${worktree_path:?}/${submodule_path:?}"
+
+	if try_submodule_update "$worktree_path" "$submodule_path"; then
+		print_message "${GREEN}${submodule_path} healed. [DONE]${NC}" 0
+		return 0
+	fi
+
+	print_message "" -1
+	print_message "${RED}Failed to re-initialize ${NC}${submodule_path}${RED}. [Fail]${NC}" -1
+	return 1
+}
+
+remove_stale_index_lock() {
+	local worktree_path=$1
+	local step_number=$2
+
+	local git_dir common_dir
+	if ! resolve_worktree_dirs "$worktree_path" git_dir common_dir; then
+		return 0
+	fi
+
+	local lock_file="$git_dir/index.lock"
+	if [ ! -f "$lock_file" ]; then
+		return 0
+	fi
+
+	print_message "${PROMPT}Found a stale index.lock in ${NC}${worktree_path}${PROMPT}.${NC}" $step_number
+	if [ "$dry_run" = true ]; then
+		print_message "${PROMPT}(dry-run) would remove ${NC}${lock_file}${NC}" 0
+		return 0
+	fi
+
+	local response
+	response=$(prompt_user "false" "Remove it? Only do this if no git process is currently running here." 0)
+	if [ "$response" = "n" ]; then
+		print_message "${PROMPT}Skipped index.lock removal.${NC}" 0
+		return 0
+	fi
+
+	if rm -f "$lock_file" 2>&1 | indent; then
+		print_message "${GREEN}index.lock removed. [DONE]${NC}" 0
+	else
+		print_message "${RED}Failed to remove index.lock. [Fail]${NC}" 0
+	fi
+}
+
+heal_worktree() {
+	local worktree_path=$1
+	local step_number=$2
+
+	print_message "${BLUE}Checking ${NC}${worktree_path}${BLUE}...${NC}" $step_number
+
+	local -a broken_paths
+	local -a broken_gitdirs
+	if ! find_broken_submodules "$worktree_path" broken_paths broken_gitdirs; then
+		print_message "${RED}Could not read worktree metadata. [Fail]${NC}" 0
+		return 1
+	fi
+
+	remove_stale_index_lock "$worktree_path" 0
+
+	if [ ${#broken_paths[@]} -eq 0 ]; then
+		print_message "${GREEN}No broken submodule gitdirs found.${NC}" 0
+		return 0
+	fi
+
+	print_message "${PROMPT}Found ${#broken_paths[@]} broken submodule gitdir(s):${NC}" 0
+	for path in "${broken_paths[@]}"; do
+		print_message "${PROMPT}- ${NC}${path}${NC}" 0
+	done
+
+	if [ "$dry_run" = true ]; then
+		return 0
+	fi
+
+	local response
+	response=$(prompt_user "true" "Repair them now?" 0)
+	if [ "$response" = "n" ]; then
+		print_message "${PROMPT}Skipped.${NC}" 0
+		return 0
+	fi
+
+	print_message "${BLUE}Repairing broken submodule(s)...${NC}" $((step_number + 1))
+
+	local failures=0
+	for i in "${!broken_paths[@]}"; do
+		if ! repair_broken_submodule "$worktree_path" "${broken_paths[$i]}" "${broken_gitdirs[$i]}" 0; then
+			failures=$((failures + 1))
+		fi
+	done
+
+	if [ $failures -gt 0 ]; then
+		return 1
+	fi
+	return 0
+}
+
+find_worktree_paths() {
+	local -n paths_ref=$1
+
+	paths_ref=()
+	while IFS= read -r line; do
+		if [[ $line == worktree* ]]; then
+			paths_ref+=("${line#worktree }")
+		fi
+	done < <(git worktree list --porcelain 2>&1)
+}
+
+main() {
+	set_flags "$@"
+	validate_dependencies git figlet lolcat
+	print_banner
+
+	local -a targets=()
+
+	if [ "$heal_all" = true ]; then
+		find_worktree_paths targets
+		if [ ${#targets[@]} -eq 0 ]; then
+			print_message "" -1
+			print_message "${RED}No worktrees found. [Fail]${NC}" -1
+			exit 1
+		fi
+	elif [ -n "$worktree_name" ] || [ -n "$target_branch" ]; then
+		local -a all_paths=()
+		find_worktree_paths all_paths
+		local match=""
+		for path in "${all_paths[@]}"; do
+			if [ -n "$worktree_name" ] && [ "$(basename "$path")" = "$worktree_name" ]; then
+				match="$path"
+				break
+			fi
+			if [ -n "$target_branch" ]; then
+				local branch
+				branch=$(cd "$path" 2>/dev/null && git rev-parse --abbrev-ref HEAD 2>/dev/null)
+				if [ "$branch" = "$target_branch" ]; then
+					match="$path"
+					break
+				fi
+			fi
+		done
+
+		if [ -z "$match" ]; then
+			print_message "" -1
+			print_message "${RED}No matching worktree found. [Fail]${NC}" -1
+			exit 1
+		fi
+		targets=("$match")
+	else
+		targets=("$(pwd)")
+	fi
+
+	local step_number=1
+	local overall_failures=0
+	for path in "${targets[@]}"; do
+		if ! heal_worktree "$path" $step_number; then
+			overall_failures=$((overall_failures + 1))
+		fi
+		step_number=$((step_number + 2))
+	done
+
+	print_message "" -1
+	if [ $overall_failures -gt 0 ]; then
+		print_message "${RED}Finished with ${overall_failures} failure(s). [Fail]${NC}" -1
+		exit 1
+	fi
+	print_message "${GREEN}Worktree heal complete. [DONE]${NC}" -1
+}
+
+# Only run main if script is executed directly (not sourced)
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+	main "$@"
+	exit 0
+fi

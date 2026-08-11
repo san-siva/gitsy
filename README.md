@@ -31,6 +31,7 @@ For complete documentation, usage examples, and detailed command reference, visi
 | `g-rmf` | Stash working directory changes |
 | `g-rto` | Reset to remote branch |
 | `g-diff` | Compare changes between branches |
+| `g-wh` | Detect and repair a bricked git worktree |
 
 ## Installation
 
