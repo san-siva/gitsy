@@ -26,6 +26,18 @@ setup() {
     [ "$target_branch" = "my-branch" ]
 }
 
+@test "set_flags: --all sets remove_all=true" {
+    remove_all=false
+    set_flags "--all"
+    [ "$remove_all" = "true" ]
+}
+
+@test "set_flags: -a sets remove_all=true" {
+    remove_all=false
+    set_flags "-a"
+    [ "$remove_all" = "true" ]
+}
+
 @test "set_flags: genuinely unknown flag still errors" {
     run set_flags "--bogus"
     [ "$status" -eq 1 ]

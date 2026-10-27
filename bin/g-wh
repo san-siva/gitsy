@@ -5,13 +5,13 @@
 
 # Description:
 # This script detects and repairs a bricked git worktree.
-# The main failure mode it targets: a linked worktree keeps a private
-# gitdir per submodule under <common-dir>/worktrees/<name>/modules/<path>.
-# If that setup gets interrupted (killed process, crash) mid-merge, the
-# stub is left with only a config file and no HEAD/objects/refs, which
-# makes every git command in the worktree fail with
-# "fatal: not a git repository: ...modules/<path>".
-# It also clears a stale index.lock left by an interrupted git process.
+# Key failure modes targeted:
+# 1. Broken submodule gitdirs: a linked worktree keeps a private gitdir per
+#    submodule under <common-dir>/worktrees/<name>/modules/<path>. If setup is
+#    interrupted, the stub causes "fatal: not a git repository".
+# 2. Stale index.lock left by an interrupted git process.
+# 3. Stale / prunable worktree registrations: worktree records in git whose
+#    directories on disk were removed (e.g. manual deletion).
 
 # Resolve script directory (works with symlinks for npm global install)
 SOURCE="${BASH_SOURCE[0]}"
@@ -297,6 +297,30 @@ heal_worktree() {
 
 	print_message "${BLUE}Checking ${NC}${worktree_path}${BLUE}...${NC}" $step_number
 
+	if [ ! -d "$worktree_path" ]; then
+		print_message "${PROMPT}Worktree directory does not exist on disk.${NC}" 0
+		if [ "$dry_run" = true ]; then
+			print_message "${PROMPT}(dry-run) would prune stale worktree registration${NC}" 0
+			return 0
+		fi
+
+		local response
+		response=$(prompt_user "true" "Prune this stale worktree registration now?" 0)
+		if [ "$response" = "n" ]; then
+			print_message "${PROMPT}Skipped pruning.${NC}" 0
+			return 0
+		fi
+
+		print_message "${BLUE}Pruning stale worktree registration...${NC}" 0
+		if git -c color.ui=always worktree prune 2>&1 | indent; then
+			print_message "${GREEN}Stale worktree pruned. [DONE]${NC}" 0
+			return 0
+		else
+			print_message "${RED}Failed to prune stale worktree. [Fail]${NC}" 0
+			return 1
+		fi
+	fi
+
 	local -a broken_paths
 	local -a broken_gitdirs
 	if ! find_broken_submodules "$worktree_path" broken_paths broken_gitdirs; then
@@ -342,6 +366,136 @@ heal_worktree() {
 	return 0
 }
 
+find_prunable_worktrees() {
+	local -n p_paths_ref=$1
+	local -n p_branches_ref=$2
+
+	p_paths_ref=()
+	p_branches_ref=()
+
+	local worktree_output
+	worktree_output=$(git worktree list --porcelain 2>&1)
+	local exit_code=$?
+	if [ $exit_code -ne 0 ] || [ -z "$worktree_output" ]; then
+		return 0
+	fi
+
+	local current_path=""
+	local current_branch=""
+	local is_prunable=false
+
+	while IFS= read -r line; do
+		if [[ $line == worktree* ]]; then
+			if [ -n "$current_path" ]; then
+				if [ "$is_prunable" = true ] || [ ! -d "$current_path" ]; then
+					p_paths_ref+=("$current_path")
+					p_branches_ref+=("$current_branch")
+				fi
+			fi
+			current_path="${line#worktree }"
+			current_branch=""
+			is_prunable=false
+		elif [[ $line == branch* ]]; then
+			current_branch="${line#branch refs/heads/}"
+			current_branch="${current_branch#branch }"
+		elif [[ $line == prunable* ]]; then
+			is_prunable=true
+		fi
+	done <<<"$worktree_output"
+
+	if [ -n "$current_path" ]; then
+		if [ "$is_prunable" = true ] || [ ! -d "$current_path" ]; then
+			p_paths_ref+=("$current_path")
+			p_branches_ref+=("$current_branch")
+		fi
+	fi
+
+	return 0
+}
+
+prune_stale_worktrees() {
+	local step_number=$1
+
+	local -a prunable_paths=()
+	local -a prunable_branches=()
+	find_prunable_worktrees prunable_paths prunable_branches
+
+	local count=${#prunable_paths[@]}
+	if [ $count -eq 0 ]; then
+		return 0
+	fi
+
+	print_message "${PROMPT}Found ${count} stale worktree registration(s) with missing directories:${NC}" $step_number
+	for i in "${!prunable_paths[@]}"; do
+		local p_name
+		p_name=$(basename "${prunable_paths[$i]}")
+		local p_branch="${prunable_branches[$i]}"
+		if [ -n "$p_branch" ]; then
+			print_message "${PROMPT}- ${NC}${p_name}${PROMPT} (branch: ${NC}${p_branch}${PROMPT})${NC}" 0
+		else
+			print_message "${PROMPT}- ${NC}${p_name}${NC}" 0
+		fi
+	done
+
+	if [ "$dry_run" = true ]; then
+		print_message "${PROMPT}(dry-run) would prune ${count} stale worktree(s)${NC}" 0
+		return 0
+	fi
+
+	local response
+	response=$(prompt_user "true" "Prune stale worktree registrations now?" 0)
+	if [ "$response" = "n" ]; then
+		print_message "${PROMPT}Skipped pruning.${NC}" 0
+		return 0
+	fi
+
+	print_message "${BLUE}Pruning stale worktrees...${NC}" 0
+	if git -c color.ui=always worktree prune 2>&1 | indent; then
+		print_message "${GREEN}Stale worktrees pruned successfully. [DONE]${NC}" 0
+		return 0
+	else
+		print_message "${RED}Failed to prune stale worktrees. [Fail]${NC}" 0
+		return 1
+	fi
+}
+
+find_worktree_entries() {
+	local -n e_paths_ref=$1
+	local -n e_branches_ref=$2
+
+	e_paths_ref=()
+	e_branches_ref=()
+
+	local worktree_output
+	worktree_output=$(git worktree list --porcelain 2>&1)
+	local exit_code=$?
+	[ $exit_code -ne 0 ] && return 1
+
+	local current_path=""
+	local current_branch=""
+
+	while IFS= read -r line; do
+		if [[ $line == worktree* ]]; then
+			if [ -n "$current_path" ]; then
+				e_paths_ref+=("$current_path")
+				e_branches_ref+=("$current_branch")
+			fi
+			current_path="${line#worktree }"
+			current_branch=""
+		elif [[ $line == branch* ]]; then
+			current_branch="${line#branch refs/heads/}"
+			current_branch="${current_branch#branch }"
+		fi
+	done <<<"$worktree_output"
+
+	if [ -n "$current_path" ]; then
+		e_paths_ref+=("$current_path")
+		e_branches_ref+=("$current_branch")
+	fi
+
+	return 0
+}
+
 find_worktree_paths() {
 	local -n paths_ref=$1
 
@@ -358,6 +512,26 @@ main() {
 	validate_dependencies git figlet lolcat
 	print_banner
 
+	local step_number=1
+
+	# Determine if we're in the main repository / common-dir worktree
+	local is_main_worktree=false
+	local git_dir common_dir
+	if resolve_worktree_dirs "$(pwd)" git_dir common_dir && [ "$git_dir" = "$common_dir" ]; then
+		is_main_worktree=true
+	fi
+
+	# Prune stale worktrees when healing all worktrees or when running in main without a target
+	if [ "$heal_all" = true ] || { [ -z "$worktree_name" ] && [ -z "$target_branch" ] && [ "$is_main_worktree" = true ]; }; then
+		local -a prunable_check=()
+		local -a prunable_branches_check=()
+		find_prunable_worktrees prunable_check prunable_branches_check
+		if [ ${#prunable_check[@]} -gt 0 ]; then
+			prune_stale_worktrees $step_number
+			step_number=$((step_number + 2))
+		fi
+	fi
+
 	local -a targets=()
 
 	if [ "$heal_all" = true ]; then
@@ -369,20 +543,19 @@ main() {
 		fi
 	elif [ -n "$worktree_name" ] || [ -n "$target_branch" ]; then
 		local -a all_paths=()
-		find_worktree_paths all_paths
+		local -a all_branches=()
+		find_worktree_entries all_paths all_branches
 		local match=""
-		for path in "${all_paths[@]}"; do
-			if [ -n "$worktree_name" ] && [ "$(basename "$path")" = "$worktree_name" ]; then
-				match="$path"
+		for i in "${!all_paths[@]}"; do
+			local p="${all_paths[$i]}"
+			local b="${all_branches[$i]}"
+			if [ -n "$worktree_name" ] && [ "$(basename "$p")" = "$worktree_name" ]; then
+				match="$p"
 				break
 			fi
-			if [ -n "$target_branch" ]; then
-				local branch
-				branch=$(cd "$path" 2>/dev/null && git rev-parse --abbrev-ref HEAD 2>/dev/null)
-				if [ "$branch" = "$target_branch" ]; then
-					match="$path"
-					break
-				fi
+			if [ -n "$target_branch" ] && [ "$b" = "$target_branch" ]; then
+				match="$p"
+				break
 			fi
 		done
 
@@ -396,7 +569,6 @@ main() {
 		targets=("$(pwd)")
 	fi
 
-	local step_number=1
 	local overall_failures=0
 	for path in "${targets[@]}"; do
 		if ! heal_worktree "$path" $step_number; then

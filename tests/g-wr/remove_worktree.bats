@@ -114,3 +114,27 @@ teardown() {
     # CWD must have been moved to the parent (worktrees dir) — not left in deleted dir
     [ "$(pwd)" = "$worktrees_dir" ]
 }
+
+@test "remove_worktree: prunes worktree whose directory is missing on disk" {
+    local worktrees_dir
+    worktrees_dir=$(cd "$TEST_DIR/worktrees" && pwd)
+    local worktree_path="$worktrees_dir/missing_on_disk"
+
+    cd "$TEST_DIR/main"
+    git worktree add "$worktree_path" -b missing-on-disk -q 2>/dev/null || \
+        git worktree add -b missing-on-disk "$worktree_path" -q 2>/dev/null || true
+
+    # Manually remove the directory
+    rm -rf "$worktree_path"
+
+    # Call remove_worktree
+    cd "$TEST_DIR/main"
+    run remove_worktree "$worktree_path" 1
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "pruned successfully" ]]
+
+    # Ensure git worktree list no longer includes it
+    local porcelain
+    porcelain=$(git worktree list --porcelain)
+    [[ ! "$porcelain" =~ "missing-on-disk" ]]
+}

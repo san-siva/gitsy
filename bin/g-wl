@@ -41,6 +41,9 @@ set_flags() {
 list_worktrees() {
 	print_message "${BLUE}Fetching worktrees...${NC}" 1
 
+	# Prune any stale worktree administrative records whose directories no longer exist
+	git worktree prune 2>/dev/null
+
 	# Get worktree list in porcelain format for easier parsing
 	local worktree_output
 	worktree_output=$(git worktree list --porcelain 2>&1)
@@ -64,43 +67,51 @@ list_worktrees() {
 	local -a branch_names=()
 	local worktree_path=""
 	local branch_name=""
+	local is_prunable=false
 	local max_length=0
 
 	while IFS= read -r line; do
 		if [[ $line == worktree* ]]; then
-			# If we already have a worktree_path, save it
+			# If we already have a worktree_path, save it if it exists and is not prunable
 			if [ -n "$worktree_path" ]; then
-				local dir_name=$(basename "$worktree_path")
-				dir_names+=("$dir_name")
-				branch_names+=("$branch_name")
+				if [ "$is_prunable" = false ] && [ -d "$worktree_path" ]; then
+					local dir_name=$(basename "$worktree_path")
+					dir_names+=("$dir_name")
+					branch_names+=("$branch_name")
 
-				# Update max length
-				local dir_length=${#dir_name}
-				if [ $dir_length -gt $max_length ]; then
-					max_length=$dir_length
+					# Update max length
+					local dir_length=${#dir_name}
+					if [ $dir_length -gt $max_length ]; then
+						max_length=$dir_length
+					fi
 				fi
 			fi
 			# Extract new worktree path
 			worktree_path="${line#worktree }"
 			branch_name=""
+			is_prunable=false
 		elif [[ $line == branch* ]]; then
 			# Extract branch name
 			branch_name="${line#branch }"
 			# Remove refs/heads/ prefix if present
 			branch_name="${branch_name#refs/heads/}"
+		elif [[ $line == prunable* ]]; then
+			is_prunable=true
 		fi
 	done <<<"$worktree_output"
 
 	# Save the last entry
 	if [ -n "$worktree_path" ]; then
-		local dir_name=$(basename "$worktree_path")
-		dir_names+=("$dir_name")
-		branch_names+=("$branch_name")
+		if [ "$is_prunable" = false ] && [ -d "$worktree_path" ]; then
+			local dir_name=$(basename "$worktree_path")
+			dir_names+=("$dir_name")
+			branch_names+=("$branch_name")
 
-		# Update max length
-		local dir_length=${#dir_name}
-		if [ $dir_length -gt $max_length ]; then
-			max_length=$dir_length
+			# Update max length
+			local dir_length=${#dir_name}
+			if [ $dir_length -gt $max_length ]; then
+				max_length=$dir_length
+			fi
 		fi
 	fi
 

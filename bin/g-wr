@@ -21,6 +21,7 @@ source "$SCRIPT_DIR/utils"
 target_branch=
 worktree_name=
 stash=false
+remove_all=false
 
 set_flags() {
 	while [ $# -gt 0 ]; do
@@ -34,9 +35,13 @@ set_flags() {
 			echo "-h, --help                                                             show brief help"
 			echo "--target-branch BRANCH, --target-branch=BRANCH, -t=BRANCH, -t BRANCH   specify the target branch"
 			echo "--worktree-name NAME, --worktree-name=NAME, -w=NAME, -w NAME           specify the worktree directory name"
+			echo "-a, --all                                                              remove all worktrees except for main"
 			echo "-s, --stash-changes                                                    stash changes before proceeding"
 			echo "-f, --force                                                            skip all confirmation prompts (assume yes)"
 			exit 0
+			;;
+		-a | --all)
+			remove_all=true
 			;;
 		-t=* | --target-branch=*)
 			target_branch="${1#*=}"
@@ -126,22 +131,74 @@ cd_to_worktrees_dir() {
 	fi
 }
 
+get_all_worktrees() {
+	local -n g_paths_ref=$1
+	local -n g_branches_ref=$2
+
+	g_paths_ref=()
+	g_branches_ref=()
+
+	local worktree_output
+	worktree_output=$(git worktree list --porcelain 2>&1)
+	local exit_code=$?
+	if [ $exit_code -ne 0 ] || [ -z "$worktree_output" ]; then
+		return 1
+	fi
+
+	local current_path=""
+	local current_branch=""
+
+	while IFS= read -r line; do
+		if [[ $line == worktree* ]]; then
+			if [ -n "$current_path" ]; then
+				g_paths_ref+=("$current_path")
+				g_branches_ref+=("$current_branch")
+			fi
+			current_path="${line#worktree }"
+			current_branch=""
+		elif [[ $line == branch* ]]; then
+			current_branch="${line#branch refs/heads/}"
+			current_branch="${current_branch#branch }"
+		fi
+	done <<<"$worktree_output"
+
+	if [ -n "$current_path" ]; then
+		g_paths_ref+=("$current_path")
+		g_branches_ref+=("$current_branch")
+	fi
+
+	return 0
+}
+
 find_worktree_by_name() {
 	local worktree_name=$1
 
-	cd_to_worktrees_dir
-	local worktrees_dir=$(pwd)
+	if cd_to_worktrees_dir 2>/dev/null; then
+		local worktrees_dir=$(pwd)
 
-	for dir in *; do
-		if [ ! -d "$dir" ]; then
-			continue
-		fi
+		for dir in *; do
+			if [ ! -d "$dir" ]; then
+				continue
+			fi
 
-		if [ "$dir" = "$worktree_name" ]; then
-			echo "$worktrees_dir/$dir"
-			return 0
-		fi
-	done
+			if [ "$dir" = "$worktree_name" ]; then
+				echo "$worktrees_dir/$dir"
+				return 0
+			fi
+		done
+	fi
+
+	# Fallback: check git worktree list (handles stale/prunable worktrees)
+	local -a paths=()
+	local -a branches=()
+	if get_all_worktrees paths branches; then
+		for p in "${paths[@]}"; do
+			if [ "$(basename "$p")" = "$worktree_name" ]; then
+				echo "$p"
+				return 0
+			fi
+		done
+	fi
 
 	return 1
 }
@@ -151,29 +208,42 @@ find_worktree_by_branch() {
 
 	check_if_target_branch_is_set "$target_branch"
 
-	cd_to_worktrees_dir
-	local worktrees_dir=$(pwd)
+	if cd_to_worktrees_dir 2>/dev/null; then
+		local worktrees_dir=$(pwd)
 
-	for dir in *; do
-		if [ ! -d "$dir" ]; then
-			continue
-		fi
+		for dir in *; do
+			if [ ! -d "$dir" ]; then
+				continue
+			fi
 
-		local worktree_path="$worktrees_dir/$dir"
+			local worktree_path="$worktrees_dir/$dir"
 
-		# Use subshell to check branch without changing parent directory
-		local branch
-		branch=$(cd "$worktree_path" 2>/dev/null && git rev-parse --abbrev-ref HEAD 2>/dev/null)
-		local branch_exit=$?
-		if [ $branch_exit -ne 0 ] || [ -z "$branch" ]; then
-			continue
-		fi
+			# Use subshell to check branch without changing parent directory
+			local branch
+			branch=$(cd "$worktree_path" 2>/dev/null && git rev-parse --abbrev-ref HEAD 2>/dev/null)
+			local branch_exit=$?
+			if [ $branch_exit -ne 0 ] || [ -z "$branch" ]; then
+				continue
+			fi
 
-		if [ "$branch" = "$target_branch" ]; then
-			echo "$worktree_path"
-			return 0
-		fi
-	done
+			if [ "$branch" = "$target_branch" ]; then
+				echo "$worktree_path"
+				return 0
+			fi
+		done
+	fi
+
+	# Fallback: check git worktree list (handles stale/prunable worktrees)
+	local -a paths=()
+	local -a branches=()
+	if get_all_worktrees paths branches; then
+		for i in "${!paths[@]}"; do
+			if [ "${branches[$i]}" = "$target_branch" ]; then
+				echo "${paths[$i]}"
+				return 0
+			fi
+		done
+	fi
 
 	return 1
 }
@@ -191,6 +261,10 @@ find_dir_to_remove() {
 check_if_worktree_is_clean() {
 	local worktree_path=$1
 	local step_number=$2
+
+	if [ ! -d "$worktree_path" ]; then
+		return 0
+	fi
 
 	print_message "${BLUE}Checking for uncommitted changes...${NC}" $step_number
 
@@ -212,6 +286,17 @@ remove_worktree() {
 	local step_number=$2
 
 	print_message "${BLUE}Removing worktree at ${NC}${worktree_path}${BLUE}...${NC}" $step_number
+
+	if [ ! -d "$worktree_path" ]; then
+		print_message "${PROMPT}Worktree directory missing on disk. Pruning from git records...${NC}" 0
+		if git -c color.ui=always worktree prune 2>&1 | indent; then
+			print_message "${GREEN}Worktree pruned successfully. [DONE]${NC}" 0
+			return 0
+		else
+			print_message "${RED}Failed to prune worktree. [Fail]${NC}" 0
+			return 1
+		fi
+	fi
 
 	local worktree_parent
 	worktree_parent=$(dirname "$worktree_path")
@@ -246,6 +331,118 @@ remove_worktree() {
 	return 1
 }
 
+remove_all_worktrees() {
+	local step_number=$1
+
+	local response
+	response=$(prompt_user "false" "Are you sure you want to remove all worktrees except main?" $step_number)
+	if [ "$response" = "n" ]; then
+		print_message "" -1
+		print_message "${PROMPT}Worktree removal cancelled.${NC}" -1
+		exit 0
+	fi
+
+	print_message "${BLUE}Discovering worktrees to remove...${NC}" $((step_number + 1))
+
+	local -a all_paths=()
+	local -a all_branches=()
+	get_all_worktrees all_paths all_branches
+
+	# Also check physical directories inside worktrees/ dir
+	local git_root
+	git_root=$(git rev-parse --show-toplevel 2>/dev/null)
+	local git_root_parent=$(dirname "$git_root")
+	local git_root_parent_name=$(basename "$git_root_parent")
+	local worktrees_dir="$git_root_parent/worktrees"
+	if [ "$git_root_parent_name" = "worktrees" ]; then
+		worktrees_dir="$git_root_parent"
+	fi
+
+	if [ -d "$worktrees_dir" ]; then
+		for dir in "$worktrees_dir"/*; do
+			if [ -d "$dir" ]; then
+				local already_in_list=false
+				for p in "${all_paths[@]}"; do
+					if [ "$p" = "$dir" ]; then
+						already_in_list=true
+						break
+					fi
+				done
+				if [ "$already_in_list" = false ]; then
+					all_paths+=("$dir")
+					all_branches+=("")
+				fi
+			fi
+		done
+	fi
+
+	local -a targets_to_remove=()
+	for p in "${all_paths[@]}"; do
+		local d_name
+		d_name=$(basename "$p")
+		if [ "$d_name" = "main" ]; then
+			continue
+		fi
+		targets_to_remove+=("$p")
+	done
+
+	local count=${#targets_to_remove[@]}
+	if [ $count -eq 0 ]; then
+		print_message "${GREEN}No worktrees found to remove.${NC}" 0
+		git worktree prune 2>/dev/null
+		return 0
+	fi
+
+	print_message "${PROMPT}Found ${count} worktree(s) to remove.${NC}" 0
+
+	# If currently inside one of the worktrees to be removed, navigate to main repo
+	local current_dir
+	current_dir=$(pwd -P)
+	for p in "${targets_to_remove[@]}"; do
+		local p_real
+		p_real=$(cd "$p" 2>/dev/null && pwd -P)
+		if [ -n "$p_real" ] && [[ "$current_dir" == "$p_real"* ]]; then
+			local main_dir
+			if [ "$git_root_parent_name" = "worktrees" ]; then
+				main_dir="$git_root_parent/../main"
+			else
+				main_dir="$git_root"
+			fi
+			if [ -d "$main_dir" ]; then
+				cd "$main_dir" 2>/dev/null
+			fi
+			break
+		fi
+	done
+
+	local failures=0
+	local sub_step=$((step_number + 2))
+	for target in "${targets_to_remove[@]}"; do
+		check_if_worktree_is_clean "$target" $sub_step
+		if ! remove_worktree "$target" $((sub_step + 1)); then
+			failures=$((failures + 1))
+		fi
+		sub_step=$((sub_step + 2))
+	done
+
+	local main_dir
+	if [ "$git_root_parent_name" = "worktrees" ]; then
+		main_dir="$git_root_parent/../main"
+	else
+		main_dir="$git_root"
+	fi
+	[ -d "$main_dir" ] && cd "$main_dir" 2>/dev/null
+	git -c color.ui=always worktree prune 2>/dev/null
+
+	print_message "" -1
+	if [ $failures -gt 0 ]; then
+		print_message "${RED}Finished with ${failures} failure(s). [Fail]${NC}" -1
+		exit 1
+	fi
+
+	print_message "${GREEN}All worktrees removed successfully. [DONE]${NC}" -1
+}
+
 main() {
 	set_flags "$@"
 	validate_dependencies git figlet lolcat
@@ -255,6 +452,17 @@ main() {
 	if [ "$stash" = true ]; then
 		stash_changes $stash $step_number
 		step_number=2
+	fi
+
+	if [ "$remove_all" = true ]; then
+		remove_all_worktrees $step_number
+		return 0
+	fi
+
+	if [ -z "$worktree_name" ] && [ -z "$target_branch" ]; then
+		print_message "" -1
+		print_message "${RED}Error: Please specify a target branch (-t), worktree name (-w), or --all (-a). [Fail]${NC}" -1
+		exit 1
 	fi
 
 	if [ -n "$worktree_name" ]; then

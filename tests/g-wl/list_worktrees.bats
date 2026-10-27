@@ -143,3 +143,16 @@ teardown() {
     # The test passes if headers are present in output
     # (Color codes are handled by terminal, difficult to test directly in BATS)
 }
+
+@test "list_worktrees: does not list worktrees whose directory was deleted" {
+    mkdir -p ../worktrees
+    git worktree add ../worktrees/temp-branch -b temp-branch 2>&1
+
+    # Manually remove the worktree directory on disk (simulating user rm -rf)
+    rm -rf ../worktrees/temp-branch
+
+    run list_worktrees
+    [ "$status" -eq 0 ]
+    [[ ! "$output" =~ "temp-branch" ]]
+    [[ "$output" =~ "Total worktrees: 1" ]]
+}

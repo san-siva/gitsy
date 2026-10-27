@@ -25,7 +25,7 @@ For complete documentation, usage examples, and detailed command reference, visi
 | `g-push` | Push changes to remote (supports force push) |
 | `g-wa` | Create git worktree with automatic repository restructuring |
 | `g-wl` | List all git worktrees with their branches |
-| `g-wr` | Remove git worktree |
+| `g-wr` | Remove git worktree (supports `--all` to remove all except main) |
 | `g-db` | Delete branch locally and remotely |
 | `g-dlc` | Discard last commit |
 | `g-rmf` | Stash working directory changes |
