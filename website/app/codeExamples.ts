@@ -45,7 +45,31 @@ g-wr [options]
 options:
 -h, --help                                                             show brief help
 --target-branch BRANCH, --target-branch=BRANCH, -t=BRANCH, -t BRANCH   specify the target branch
---worktree-name NAME, --worktree-name=NAME, -w=NAME, -w NAME           specify the worktree directory name`,
+--worktree-name NAME, --worktree-name=NAME, -w=NAME, -w NAME           specify the worktree directory name
+-a, --all                                                              remove all worktrees except for main
+-s, --stash-changes                                                    stash changes before proceeding
+-f, --force                                                            skip all confirmation prompts (assume yes)`,
+
+	worktreeList: `g-wl - list all git worktrees with their branches
+
+g-wl [options]
+
+options:
+-h, --help          show brief help`,
+
+	worktreeHeal: `g-wh - detect and repair a bricked git worktree
+
+g-wh [options]
+
+options:
+-h, --help                                                             show brief help
+--target-branch BRANCH, --target-branch=BRANCH, -t=BRANCH, -t BRANCH   heal the worktree checked out at BRANCH
+--worktree-name NAME, --worktree-name=NAME, -w=NAME, -w NAME           heal the worktree directory named NAME
+-a, --all                                                              heal every worktree
+--dry-run                                                              report problems without fixing them
+-f, --force                                                            skip all confirmation prompts (assume yes)
+
+With no options, heals the worktree at the current directory.`,
 
 	deleteBranch: `g-db - delete a branch locally and optionally on remote
 
@@ -153,7 +177,32 @@ g-wa -t develop --stash-changes`,
 g-wr -t feature/old-feature
 
 # Remove by sanitized worktree directory name
-g-wr -w feature_old_feature`,
+g-wr -w feature_old_feature
+
+# Remove all worktrees except main
+g-wr --all
+
+# Remove all worktrees with auto-confirm
+g-wr -a -f`,
+
+	worktreeList: `# List all worktrees with their branch names
+g-wl`,
+
+	worktreeHeal: `# Heal current worktree (repairs submodules, stale locks, and prunes dead records in main)
+g-wh
+
+# Heal all worktrees across the repository
+g-wh --all
+
+# Heal or prune a specific worktree by branch or directory name
+g-wh -t feature/broken-branch
+g-wh -w broken_worktree
+
+# Preview repairs and prunes without making changes
+g-wh --all --dry-run
+
+# Skip confirmation prompts
+g-wh -a -f`,
 
 	deleteBranch: `# Delete branch (prompts for remote deletion)
 g-db -t feature/completed`,

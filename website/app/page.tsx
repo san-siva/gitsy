@@ -78,10 +78,18 @@ export default function Home() {
 							'Create git worktree',
 							<code>--target-branch, --worktree-name, --stash-changes</code>,
 						],
+						[<code>g-wl</code>, 'List all git worktrees', 'None'],
 						[
 							<code>g-wr</code>,
 							'Remove git worktree',
-							<code>--target-branch, --worktree-name</code>,
+							<code>--target-branch, --worktree-name, --all, --force</code>,
+						],
+						[
+							<code>g-wh</code>,
+							'Detect and repair bricked worktree / prune',
+							<code>
+								--target-branch, --worktree-name, --all, --dry-run, --force
+							</code>,
 						],
 						[<code>g-db</code>, 'Delete branch', <code>--target-branch</code>],
 						[<code>g-dlc</code>, 'Discard last commit', <code>--force</code>],
@@ -129,9 +137,19 @@ export default function Home() {
 							'Create a new git worktree with automatic repository restructuring. Organizes your repo into main/ and worktrees/ directories for better branch isolation.',
 						],
 						[
+							<code>g-wl</code>,
+							'List Worktrees',
+							'List all active worktrees along with their branch names in an aligned table. Automatically prunes stale entries whose directories no longer exist.',
+						],
+						[
 							<code>g-wr</code>,
 							'Remove Worktree',
-							'Remove a git worktree by branch name or worktree directory name.',
+							'Remove a git worktree by branch or directory name, prune stale worktree records, or remove all worktrees except main using --all.',
+						],
+						[
+							<code>g-wh</code>,
+							'Heal Worktree',
+							'Detect and repair bricked worktrees: fixes broken submodule gitdirs, clears stale index.lock files, and prunes orphaned worktree registrations.',
 						],
 						[
 							<code>g-db</code>,
@@ -428,9 +446,45 @@ export default function Home() {
 					</Callout>
 				</BlogSection>
 
+				<BlogSection title="List Git Worktrees (g-wl)">
+					<p className={styles['margin-bottom--2']}>
+						List all active git worktrees along with their checked out branch
+						names in an aligned table.
+					</p>
+					<CodeBlock
+						language="bash"
+						code={HELP_TEXT.worktreeList}
+						hasMarginUp
+						hasMarginDown
+					/>
+					<p className={styles['margin-bottom--2']}>Usage examples:</p>
+					<CodeBlock
+						language="bash"
+						code={CODE_EXAMPLES.worktreeList}
+						hasMarginUp
+						hasMarginDown
+					/>
+					<p className={styles['margin-bottom--2']}>
+						The command will automatically:
+					</p>
+					<ul>
+						<li>
+							Automatically prune stale worktree records whose directories were
+							deleted on disk
+						</li>
+						<li>
+							Display directory names, branch names, and detached HEAD states in
+							a formatted table
+						</li>
+						<li>Show the total count of active worktrees</li>
+					</ul>
+				</BlogSection>
+
 				<BlogSection title="Remove Git Worktree (g-wr)">
 					<p className={styles['margin-bottom--2']}>
-						Remove a git worktree by branch name or worktree directory name.
+						Remove a git worktree by branch name or worktree directory name,
+						prune stale worktree registrations, or remove all worktrees except
+						main with <code>--all</code>.
 					</p>
 					<CodeBlock
 						language="bash"
@@ -449,10 +503,98 @@ export default function Home() {
 						The command will automatically:
 					</p>
 					<ul>
-						<li>Search for the worktree in the worktrees directory</li>
-						<li>Check for uncommitted changes in the worktree</li>
-						<li>Prompt for confirmation if uncommitted changes exist</li>
-						<li>Remove the worktree directory and prune git records</li>
+						<li>
+							Search for the worktree in the worktrees directory or Git's worktree
+							records
+						</li>
+						<li>
+							Support removing all worktrees except <code>main</code> with{' '}
+							<code>-a/--all</code>
+						</li>
+						<li>Check for uncommitted changes in the worktree before removal</li>
+						<li>
+							Prompt for confirmation before removal (skip with{' '}
+							<code>-f/--force</code>)
+						</li>
+						<li>
+							Safely navigate your shell to <code>main</code> if invoked from
+							inside a removed worktree
+						</li>
+						<li>
+							Automatically prune dead registrations from Git if the directory
+							was deleted manually
+						</li>
+					</ul>
+				</BlogSection>
+
+				<BlogSection title="Heal Git Worktree (g-wh)">
+					<p className={styles['margin-bottom--2']}>
+						Detect and repair bricked git worktrees, broken submodule gitdirs,
+						stale <code>index.lock</code> files, and orphaned worktree
+						registrations.
+					</p>
+					<CodeBlock
+						language="bash"
+						code={HELP_TEXT.worktreeHeal}
+						hasMarginUp
+						hasMarginDown
+					/>
+					<p className={styles['margin-bottom--2']}>Usage examples:</p>
+					<CodeBlock
+						language="bash"
+						code={CODE_EXAMPLES.worktreeHeal}
+						hasMarginUp
+						hasMarginDown
+					/>
+					<Callout type="info" hasMarginDown>
+						<div>
+							<p className={styles['margin-bottom--1']}>
+								<strong>Targeted Failure Modes:</strong>
+							</p>
+							<ul>
+								<li>
+									<strong>Broken submodule gitdirs:</strong> When submodule
+									setup is interrupted mid-operation, incomplete gitdirs cause{' '}
+									<code>fatal: not a git repository</code> errors.{' '}
+									<code>g-wh</code> removes incomplete gitdirs and re-runs
+									submodule update.
+								</li>
+								<li>
+									<strong>Stale index.lock files:</strong> Interrupted git
+									processes leave lock files preventing further git actions.
+								</li>
+								<li>
+									<strong>Stale / prunable worktrees:</strong> When worktree
+									directories are deleted manually without <code>g-wr</code>, Git
+									retains orphaned metadata that prevents re-checking out
+									branches. <code>g-wh</code> detects these and cleanly prunes
+									them.
+								</li>
+							</ul>
+						</div>
+					</Callout>
+					<p className={styles['margin-bottom--2']}>
+						The command will automatically:
+					</p>
+					<ul>
+						<li>
+							Heal the current worktree directory when run with no options
+						</li>
+						<li>
+							When run in <code>main</code> or with <code>-a/--all</code>, detect
+							and offer to prune all stale worktrees in the repo
+						</li>
+						<li>
+							Target individual worktrees by branch (<code>-t</code>) or
+							directory name (<code>-w</code>)
+						</li>
+						<li>
+							Preview detected issues and proposed fixes with{' '}
+							<code>--dry-run</code>
+						</li>
+						<li>
+							Skip confirmation prompts with <code>-f/--force</code>
+						</li>
 					</ul>
 				</BlogSection>
 
